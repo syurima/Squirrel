@@ -13,7 +13,7 @@
 
 ## Build Instruction (Run in docker, recommended)
 
-1. Go to the directory of the dockerfile: `cd scripts/docker/xxx/`, where `xxx` is the database name.
+1. Go to the directory of the dockerfile: `cd scripts/dockers/xxx/`, where `xxx` is the database name.
 2. Build the docker: `docker build -t xxx .`.
 3. Run: `docker run -it xxx`.
 
