@@ -16,8 +16,8 @@
 
 using namespace std;
 
-vector<string> Mutator::common_string_libary;
-vector<unsigned long> Mutator::value_libary;
+vector<string> Mutator::common_string_library;
+vector<unsigned long> Mutator::value_library;
 map<string, vector<string>> Mutator::m_tables;
 vector<string> Mutator::v_table_names;
 
@@ -138,7 +138,7 @@ void Mutator::init(string f_testcase, string f_common_string, string pragma) {
   m_tables["haha3"] = {"ducking_column0_3", "ducking_column1_3",
                        "ducking_column2_3"};
 
-  // init value_libary
+  // init value_library
   vector<unsigned long> value_lib_init = {0,
                                           (unsigned long)LONG_MAX,
                                           (unsigned long)ULONG_MAX,
@@ -162,22 +162,22 @@ void Mutator::init(string f_testcase, string f_common_string, string pragma) {
                                           (unsigned long)DBL_MIN,
                                           (unsigned long)LDBL_MIN};
 
-  value_libary.insert(value_libary.begin(), value_lib_init.begin(),
+  value_library.insert(value_library.begin(), value_lib_init.begin(),
                       value_lib_init.end());
 
-  // init common_string_libary
-  common_string_libary.push_back("DO_NOT_BE_EMPTY");
+  // init common_string_library
+  common_string_library.push_back("DO_NOT_BE_EMPTY");
   if (f_common_string != "") {
     ifstream input_string(f_common_string);
     string s;
 
     while (getline(input_string, s)) {
-      common_string_libary.push_back(s);
+      common_string_library.push_back(s);
     }
   }
-  string_libary.push_back("x");
-  string_libary.push_back("v0");
-  string_libary.push_back("v1");
+  string_library.push_back("x");
+  string_library.push_back("v0");
+  string_library.push_back("v1");
 
   ifstream input_pragma(pragma);
   assert(input_pragma.is_open());
@@ -555,14 +555,14 @@ IR *Mutator::strategy_insert(IR *cur) {
     }
   }
 
-  int lib_size = ir_libary_2D_[res->type_].size();
+  int lib_size = ir_library_2D_[res->type_].size();
   if (lib_size == 0) {
     deep_delete(res);
     return NULL;
   }
 
   auto save = res;
-  res = deep_copy(ir_libary_2D_[res->type_][get_rand_int(lib_size)]);
+  res = deep_copy(ir_library_2D_[res->type_][get_rand_int(lib_size)]);
   deep_delete(save);
 
   return res;
@@ -576,7 +576,7 @@ IR *Mutator::strategy_replace(IR *cur) {
   DOLEFT
   res = deep_copy(cur);
 
-  auto new_node = get_from_libary_2D(res->left_);
+  auto new_node = get_from_library_2D(res->left_);
 
   if (new_node != NULL) {
     new_node = deep_copy(new_node);
@@ -590,7 +590,7 @@ IR *Mutator::strategy_replace(IR *cur) {
   DORIGHT
   res = deep_copy(cur);
 
-  auto new_node = get_from_libary_2D(res->right_);
+  auto new_node = get_from_library_2D(res->right_);
   if (new_node != NULL) {
     new_node = deep_copy(new_node);
     if (res->right_ != NULL) {
@@ -603,8 +603,8 @@ IR *Mutator::strategy_replace(IR *cur) {
   DOBOTH
   res = deep_copy(cur);
 
-  auto new_left = get_from_libary_2D(res->left_);
-  auto new_right = get_from_libary_2D(res->right_);
+  auto new_left = get_from_library_2D(res->left_);
+  auto new_right = get_from_library_2D(res->right_);
 
   if (new_left != NULL) {
     new_left = deep_copy(new_left);
@@ -637,17 +637,17 @@ bool Mutator::lucky_enough_to_be_mutated(unsigned int mutated_times) {
   return false;
 }
 
-IR *Mutator::get_from_libary_2D(IR *ir) {
+IR *Mutator::get_from_library_2D(IR *ir) {
   static IR *empty_str = new IR(kStringLiteral, "");
 
   if (!ir) return NULL;
 
-  auto &i = ir_libary_2D_[ir->type_];
+  auto &i = ir_library_2D_[ir->type_];
   if (i.size() == 0) return empty_str;
   return i[get_rand_int(i.size())];
 }
 
-IR *Mutator::get_from_libary_3D(IR *ir) {
+IR *Mutator::get_from_library_3D(IR *ir) {
   NODETYPE left_type = kEmpty, right_type = kEmpty;
   if (ir->left_) {
     left_type = ir->left_->type_;
@@ -655,38 +655,38 @@ IR *Mutator::get_from_libary_3D(IR *ir) {
   if (ir->right_) {
     right_type = ir->right_->type_;
   }
-  auto &i = ir_libary_3D_[left_type][right_type];
+  auto &i = ir_library_3D_[left_type][right_type];
   if (i.size() == 0) return new IR(kStringLiteral, "");
   return i[get_rand_int(i.size())];
 }
 
 string Mutator::get_a_string() {
-  unsigned com_size = common_string_libary.size();
-  unsigned lib_size = string_libary.size();
+  unsigned com_size = common_string_library.size();
+  unsigned lib_size = string_library.size();
   unsigned double_lib_size = lib_size * 2;
 
   unsigned rand_int = get_rand_int(double_lib_size + com_size);
   if (rand_int < double_lib_size) {
-    return string_libary[rand_int >> 1];
+    return string_library[rand_int >> 1];
   } else {
     rand_int -= double_lib_size;
-    return common_string_libary[rand_int];
+    return common_string_library[rand_int];
   }
 }
 
 unsigned long Mutator::get_a_val() {
-  if (value_libary.size() == 0) return 0xdeadbeef;
-  return value_libary[get_rand_int(value_libary.size())];
+  if (value_library.size() == 0) return 0xdeadbeef;
+  return value_library[get_rand_int(value_library.size())];
 }
 
 unsigned long Mutator::get_library_size() {
   unsigned long res = 0;
 
-  for (auto &i : ir_libary_2D_) {
+  for (auto &i : ir_library_2D_) {
     res += i.second.size();
   }
 
-  for (auto &i : ir_libary_3D_) {
+  for (auto &i : ir_library_3D_) {
     for (auto &j : i.second) {
       res += j.second.size();
     }
@@ -710,8 +710,8 @@ void Mutator::add_to_library_core(IR *ir) {
 #endif
   NODETYPE p_type = ir->type_;
   unsigned long p_hash = hash(ir->to_string());
-  if (ir_libary_2D_hash_[p_type].find(p_hash) !=
-      ir_libary_2D_hash_[p_type].end()) {
+  if (ir_library_2D_hash_[p_type].find(p_hash) !=
+      ir_library_2D_hash_[p_type].end()) {
     return;
   }
   IR *ir_copy = deep_copy(ir);
@@ -730,17 +730,17 @@ void Mutator::add_to_library(IR *ir) {
   NODETYPE left_type = kEmpty, right_type = kEmpty;
 
   // update library_2D
-  if (ir_libary_2D_hash_[p_type].find(p_hash) !=
-      ir_libary_2D_hash_[p_type].end()) {
+  if (ir_library_2D_hash_[p_type].find(p_hash) !=
+      ir_library_2D_hash_[p_type].end()) {
     return;
   }
 
-  ir_libary_2D_hash_[p_type].insert(p_hash);
+  ir_library_2D_hash_[p_type].insert(p_hash);
 
 #ifdef _NON_REPLACE_
-  ir_libary_2D_[p_type].push_back(ir);
+  ir_library_2D_[p_type].push_back(ir);
 #else
-  ir_libary_2D_[p_type].push_back(deep_copy(ir));
+  ir_library_2D_[p_type].push_back(deep_copy(ir));
 #endif
 
   if (ir->left_) {
@@ -772,17 +772,17 @@ void Mutator::add_to_library(IR *ir) {
   }
 
   // update library_3D
-  set<unsigned long> &hash_map = ir_libary_3D_hash_[left_type][right_type];
+  set<unsigned long> &hash_map = ir_library_3D_hash_[left_type][right_type];
   if (hash_map.find(p_hash) != hash_map.end()) {
     return;
   }
 
-  ir_libary_3D_hash_[left_type][right_type].insert(p_hash);
+  ir_library_3D_hash_[left_type][right_type].insert(p_hash);
 
 #ifdef _NON_REPLACE_
-  ir_libary_3D_[left_type][right_type].push_back(ir);
+  ir_library_3D_[left_type][right_type].push_back(ir);
 #else
-  ir_libary_3D_[left_type][right_type].push_back(deep_copy(ir));
+  ir_library_3D_[left_type][right_type].push_back(deep_copy(ir));
 #endif
 
   return;
@@ -802,8 +802,8 @@ void Mutator::debug(IR *root) {
 
 Mutator::~Mutator() {
   cout << "HERE" << endl;
-  // delete ir_libary_3D_
-  for (auto &i : ir_libary_3D_) {
+  // delete ir_library_3D_
+  for (auto &i : ir_library_3D_) {
     for (auto &j : i.second) {
       for (auto &ir : j.second) {
         deep_delete(ir);
@@ -811,8 +811,8 @@ Mutator::~Mutator() {
     }
   }
 
-  // delete ir_libary_2D_
-  for (auto &i : ir_libary_2D_) {
+  // delete ir_library_2D_
+  for (auto &i : ir_library_2D_) {
     for (auto &ir : i.second) {
       deep_delete(ir);
     }
@@ -937,7 +937,7 @@ string Mutator::fix(IR *root) {
     string value = m_cmd_value_lib_[key][get_rand_int(value_size)];
     if (!value.compare("_int_")) {
       value = string("=") +
-              to_string(value_libary[get_rand_int(value_libary.size())]);
+              to_string(value_library[get_rand_int(value_library.size())]);
     } else if (!value.compare("_empty_")) {
       value = "";
     } else if (!value.compare("_boolean_")) {
@@ -957,19 +957,19 @@ string Mutator::fix(IR *root) {
       type_ == kOptJoinType || type_ == kOptDistinct || type_ == kNullLiteral)
     return str_val_;
   if (type_ == kStringLiteral) {
-    auto s = string_libary[get_rand_int(string_libary.size())];
+    auto s = string_library[get_rand_int(string_library.size())];
     return "'" + s + "'";
   }
   if (type_ == kIntLiteral)
-    return std::to_string(value_libary[get_rand_int(value_libary.size())]);
+    return std::to_string(value_library[get_rand_int(value_library.size())]);
   if (type_ == kFloatLiteral || type_ == kconst_float)
     return std::to_string(
-        float(value_libary[get_rand_int(value_libary.size())]) + 0.1);
+        float(value_library[get_rand_int(value_library.size())]) + 0.1);
   if (type_ == kconst_str)
-    return string_libary[get_rand_int(string_libary.size())];
+    return string_library[get_rand_int(string_library.size())];
   ;
   if (type_ == kconst_int)
-    return std::to_string(value_libary[get_rand_int(value_libary.size())]);
+    return std::to_string(value_library[get_rand_int(value_library.size())]);
 
   if (!str_val_.empty()) return str_val_;
 
@@ -1014,22 +1014,22 @@ string Mutator::extract_struct2(IR *root) {
                   str_val.end());
     string magic_string = magic_string_generator(str_val);
     unsigned long h = hash(magic_string);
-    if (string_libary_hash_.find(h) == string_libary_hash_.end()) {
-      string_libary.push_back(magic_string);
-      string_libary_hash_.insert(h);
+    if (string_library_hash_.find(h) == string_library_hash_.end()) {
+      string_library.push_back(magic_string);
+      string_library_hash_.insert(h);
     }
     return "'y'";
   }
   if (type_ == kIntLiteral) {
-    value_libary.push_back(root->int_val_);
+    value_library.push_back(root->int_val_);
     return "10";
   }
   if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_libary.push_back((unsigned long)root->f_val_);
+    value_library.push_back((unsigned long)root->f_val_);
     return "0.1";
   }
   if (type_ == kconst_int) {
-    value_libary.push_back(root->int_val_);
+    value_library.push_back(root->int_val_);
     return "11";
   }
   if (type_ == kFilePath) return "'file_name'";
@@ -1068,22 +1068,22 @@ string Mutator::extract_struct(IR *root) {
                   str_val.end());
     string magic_string = magic_string_generator(str_val);
     unsigned long h = hash(magic_string);
-    if (string_libary_hash_.find(h) == string_libary_hash_.end()) {
-      string_libary.push_back(magic_string);
-      string_libary_hash_.insert(h);
+    if (string_library_hash_.find(h) == string_library_hash_.end()) {
+      string_library.push_back(magic_string);
+      string_library_hash_.insert(h);
     }
     return "'y'";
   }
   if (type_ == kIntLiteral) {
-    value_libary.push_back(root->int_val_);
+    value_library.push_back(root->int_val_);
     return "10";
   }
   if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_libary.push_back((unsigned long)root->f_val_);
+    value_library.push_back((unsigned long)root->f_val_);
     return "0.1";
   }
   if (type_ == kconst_int) {
-    value_libary.push_back(root->int_val_);
+    value_library.push_back(root->int_val_);
     return "11";
   }
   if (type_ == kFilePath) return "'file_name'";

@@ -35,8 +35,8 @@ class Mutator {
 
   void add_to_library(IR *);
   void add_to_library_core(IR *);
-  IR *get_from_libary_3D(IR *);
-  IR *get_from_libary_2D(IR *);
+  IR *get_from_library_3D(IR *);
+  IR *get_from_library_2D(IR *);
 
   void init(string f_testcase, string f_common_string = "", string pragma = "");
   string fix(IR *root);
@@ -61,8 +61,8 @@ class Mutator {
 
   string get_a_string();
   unsigned long get_a_val();
-  static vector<string> common_string_libary;
-  static vector<unsigned long> value_libary;
+  static vector<string> common_string_library;
+  static vector<unsigned long> value_library;
   static map<string, vector<string>> m_tables;
   static vector<string> v_table_names;
   ~Mutator();
@@ -73,16 +73,16 @@ class Mutator {
 
  private:
   IR *record_ = NULL;
-  map<NODETYPE, map<NODETYPE, vector<IR *>>> ir_libary_3D_;
-  map<NODETYPE, map<NODETYPE, set<unsigned long>>> ir_libary_3D_hash_;
-  map<NODETYPE, set<unsigned long>> ir_libary_2D_hash_;
-  map<NODETYPE, vector<IR *>> ir_libary_2D_;
+  map<NODETYPE, map<NODETYPE, vector<IR *>>> ir_library_3D_;
+  map<NODETYPE, map<NODETYPE, set<unsigned long>>> ir_library_3D_hash_;
+  map<NODETYPE, set<unsigned long>> ir_library_2D_hash_;
+  map<NODETYPE, vector<IR *>> ir_library_2D_;
   map<NODETYPE, vector<IR *>> left_lib;
   map<NODETYPE, vector<IR *>> right_lib;
-  vector<string> string_libary;
+  vector<string> string_library;
   map<IDTYPE, IDTYPE> relationmap;
   map<IDTYPE, IDTYPE> cross_map;
-  set<unsigned long> string_libary_hash_;
+  set<unsigned long> string_library_hash_;
 
   vector<string> cmds_;
   map<string, vector<string>> m_cmd_value_lib_;
