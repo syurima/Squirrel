@@ -62,8 +62,7 @@ class Mutator {
   void reset_data_library();  // DONE
 
   string parse_data(string &);  // DONE
-  void extract_struct(IR *);    // Done
-  void extract_struct2(IR *);   // Done
+  void extract_struct(IR *, bool use_unique_names = false);  // Done
 
   bool fix(IR *root);  // done
 

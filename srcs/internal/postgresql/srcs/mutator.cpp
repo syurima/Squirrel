@@ -510,46 +510,20 @@ void Mutator::debug(IR *root) {
 
 Mutator::~Mutator() {}
 
-void Mutator::extract_struct(IR *root) {
+void Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
   auto type = root->type_;
   if (root->left_) {
-    extract_struct(root->left_);
+    extract_struct(root->left_, use_unique_names);
   }
   if (root->right_) {
-    extract_struct(root->right_);
+    extract_struct(root->right_, use_unique_names);
   }
 
   if (root->left_ || root->right_) return;
 
   if (root->data_type_ != kDataWhatever) {
-    root->str_val_ = "x";
-    return;
-  }
-
-  if (string_types_.find(type) != string_types_.end()) {
-    root->str_val_ = "'x'";
-  } else if (int_types_.find(type) != int_types_.end()) {
-    root->int_val_ = 1;
-  } else if (float_types_.find(type) != float_types_.end()) {
-    root->float_val_ = 1.0;
-  }
-}
-
-void Mutator::extract_struct2(IR *root) {
-  static int counter = 0;
-  auto type = root->type_;
-  if (root->left_) {
-    extract_struct2(root->left_);
-  }
-  if (root->right_) {
-    extract_struct2(root->right_);
-  }
-
-  if (root->left_ || root->right_) return;
-
-  if (root->data_type_ != kDataWhatever) {
-    root->str_val_ = "x" + to_string(counter++);
+    root->str_val_ = use_unique_names ? "x" + to_string(counter++) : "x";
     return;
   }
 

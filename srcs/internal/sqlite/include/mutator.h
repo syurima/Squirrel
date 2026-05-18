@@ -40,8 +40,7 @@ class Mutator {
 
   void init(string f_testcase, string f_common_string = "", string pragma = "");
   string fix(IR *root);
-  string extract_struct(IR *root);
-  string extract_struct2(IR *root);
+  string extract_struct(IR *root, bool use_unique_names = false);
   void add_new_table(IR *root, string &table_name);
   void reset_database();
 

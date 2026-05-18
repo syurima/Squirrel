@@ -991,7 +991,7 @@ unsigned int Mutator::calc_node(IR *root) {
   return res + 1;
 }
 
-string Mutator::extract_struct2(IR *root) {
+string Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
   string res;
   auto *right_ = root->right_, *left_ = root->left_;
@@ -1004,60 +1004,7 @@ string Mutator::extract_struct2(IR *root) {
       type_ == kSetType || type_ == kOptJoinType || type_ == kOptDistinct)
     return str_val_;
   if (root->id_type_ != id_whatever && root->id_type_ != id_module_name) {
-    return "x" + to_string(counter++);
-  }
-  if (type_ == kPrepareTargetQuery || type_ == kStringLiteral) {
-    string str_val = str_val_;
-    str_val.erase(std::remove(str_val.begin(), str_val.end(), '\''),
-                  str_val.end());
-    str_val.erase(std::remove(str_val.begin(), str_val.end(), '"'),
-                  str_val.end());
-    string magic_string = magic_string_generator(str_val);
-    unsigned long h = hash(magic_string);
-    if (string_library_hash_.find(h) == string_library_hash_.end()) {
-      string_library.push_back(magic_string);
-      string_library_hash_.insert(h);
-    }
-    return "'y'";
-  }
-  if (type_ == kIntLiteral) {
-    value_library.push_back(root->int_val_);
-    return "10";
-  }
-  if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_library.push_back((unsigned long)root->f_val_);
-    return "0.1";
-  }
-  if (type_ == kconst_int) {
-    value_library.push_back(root->int_val_);
-    return "11";
-  }
-  if (type_ == kFilePath) return "'file_name'";
-
-  if (!str_val_.empty()) return str_val_;
-  if (op_ != NULL) res += op_->prefix_ + " ";
-  if (left_ != NULL) res += extract_struct2(left_) + " ";
-  if (op_ != NULL) res += op_->middle_ + " ";
-  if (right_ != NULL) res += extract_struct2(right_) + " ";
-  if (op_ != NULL) res += op_->suffix_;
-
-  trim_string(res);
-  return res;
-}
-
-string Mutator::extract_struct(IR *root) {
-  static int counter = 0;
-  string res;
-  auto *right_ = root->right_, *left_ = root->left_;
-  auto *op_ = root->op_;
-  auto type_ = root->type_;
-  auto str_val_ = root->str_val_;
-
-  if (type_ == kColumnName && str_val_ == "*") return str_val_;
-  if (type_ == kOptOrderType || type_ == kNullLiteral || type_ == kColumnType ||
-      type_ == kSetType || type_ == kOptJoinType || type_ == kOptDistinct)
-    return str_val_;
-  if (root->id_type_ != id_whatever && root->id_type_ != id_module_name) {
+    if (use_unique_names) return "x" + to_string(counter++);
     return "x";
   }
   if (type_ == kPrepareTargetQuery || type_ == kStringLiteral) {
@@ -1090,9 +1037,9 @@ string Mutator::extract_struct(IR *root) {
 
   if (!str_val_.empty()) return str_val_;
   if (op_ != NULL) res += op_->prefix_ + " ";
-  if (left_ != NULL) res += extract_struct(left_) + " ";
+  if (left_ != NULL) res += extract_struct(left_, use_unique_names) + " ";
   if (op_ != NULL) res += op_->middle_ + " ";
-  if (right_ != NULL) res += extract_struct(right_) + " ";
+  if (right_ != NULL) res += extract_struct(right_, use_unique_names) + " ";
   if (op_ != NULL) res += op_->suffix_;
 
   trim_string(res);
