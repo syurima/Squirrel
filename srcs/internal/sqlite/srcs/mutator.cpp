@@ -210,22 +210,33 @@ void Mutator::init(string f_testcase, string f_common_string, string pragma) {
 vector<IR *> Mutator::mutate(IR *input) {
   vector<IR *> res;
 
-  if (!lucky_enough_to_be_mutated(input->mutated_times_)) {
-    return res;  // return a empty set if the IR is not mutated
-  }
+    if (!lucky_enough_to_be_mutated(input->mutated_times_)) {
+        return res;
+    }
 
-  res.push_back(strategy_delete(input));
-  res.push_back(strategy_insert(input));
-  res.push_back(strategy_replace(input));
+    switch (choose_mutation_kind()) {
+        case MutationKind::Delete:
+            res.push_back(strategy_delete(input));
+            break;
 
-  // may do some simple filter for res, like removing some duplicated cases
+        case MutationKind::Insert:
+            res.push_back(strategy_insert(input));
+            break;
 
-  input->mutated_times_ += res.size();
-  for (auto i : res) {
-    if (i == NULL) continue;
-    i->mutated_times_ = input->mutated_times_;
-  }
-  return res;
+        case MutationKind::Replace:
+            res.push_back(strategy_replace(input));
+            break;
+    }
+
+    input->mutated_times_ += res.size();
+
+    for (auto i : res) {
+        if (i == NULL) continue;
+        i->mutated_times_ = input->mutated_times_;
+    }
+
+    return res;
+}
 }
 
 bool Mutator::replace(IR *root, IR *old_ir, IR *new_ir) {
@@ -1104,4 +1115,22 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
   new_len = fixed.size();
 
   return 1;
+}
+
+MutationKind Mutator::choose_mutation_kind() {
+    int total = mutation_weights_.delete_weight
+              + mutation_weights_.insert_weight
+              + mutation_weights_.replace_weight;
+
+    int r = get_rand_int(total);
+
+    if (r < mutation_weights_.delete_weight)
+        return MutationKind::Delete;
+
+    r -= mutation_weights_.delete_weight;
+
+    if (r < mutation_weights_.insert_weight)
+        return MutationKind::Insert;
+
+    return MutationKind::Replace;
 }
