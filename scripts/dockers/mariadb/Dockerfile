@@ -2,8 +2,8 @@ from ubuntu:22.04
 LABEL maintainer="Squirrel"
 
 # common config
-RUN apt-get update
-RUN apt-get -y install make cmake build-essential vim sudo git \
+RUN apt-get -o Acquire::Retries=5 update
+RUN apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git \
     clang libmysqlclient-dev ninja-build pkg-config clang-format \
     libpq-dev libyaml-cpp-dev lld python3-fire
 
@@ -18,12 +18,10 @@ RUN chmod +w /etc/sudoers && \
     chmod -w /etc/sudoers
 
 # install mariadb-server
-RUN apt-get -y install apt-transport-https curl software-properties-common gnutls-dev
-RUN curl -o /etc/apt/trusted.gpg.d/mariadb_release_signing_key.asc \
-    'https://mariadb.org/mariadb_release_signing_key.asc'
-RUN echo "deb https://ftp.osuosl.org/pub/mariadb/repo/10.10/ubuntu jammy main" >> /etc/apt/sources.list
-RUN echo "deb-src https://ftp.osuosl.org/pub/mariadb/repo/10.10/ubuntu jammy main" >> /etc/apt/sources.list
-RUN apt-get update && apt-get -y build-dep mariadb
+RUN apt-get -o Acquire::Retries=5 -y install gnutls-dev
+RUN sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+    apt-get -o Acquire::Retries=5 update &&  \
+    apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
 
 USER dobigthing
 WORKDIR /home
