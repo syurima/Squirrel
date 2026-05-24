@@ -90,7 +90,8 @@ class Mutator {
 
   map<NODETYPE, int> type_counter_;
 
-  MutationKind choose_mutation_kind();
+  MutationWeights get_seed_adaptive_weights(IR *input);
+  MutationKind choose_mutation_kind(const MutationWeights &weights);
 };
 
 enum class MutationKind {
