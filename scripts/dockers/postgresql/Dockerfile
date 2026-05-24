@@ -1,5 +1,7 @@
-from ubuntu:22.04
+FROM ubuntu:22.04
 LABEL maintainer="Squirrel"
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # common config
 RUN apt-get -o Acquire::Retries=5 update
@@ -48,8 +50,8 @@ RUN mkdir bld/ && cd bld/ && \
     CC=/home/Squirrel/AFLplusplus/afl-cc CXX=/home/Squirrel/AFLplusplus/afl-c++ \
     /home/Squirrel/postgres/configure
 
-RUN cd bld/ && make -j && sudo make install && \
-    sudo mkdir /usr/local/pgsql/data && sudo chown dobigthing /usr/local/pgsql/data &&  \
+RUN cd bld/ && make -j"${BUILD_JOBS}" && sudo make install && \
+    sudo mkdir -p /usr/local/pgsql/data && sudo chown dobigthing /usr/local/pgsql/data &&  \
     AFL_IGNORE_PROBLEMS=1 /usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
 
 RUN AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/pgsql/bin/postgres 2>&1 | grep "__afl_map_size" | tail -n 1 | cut -d"," -f8 | cut -d" " -f 3 > /tmp/mapsize
