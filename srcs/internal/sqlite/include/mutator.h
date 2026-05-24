@@ -89,6 +89,20 @@ class Mutator {
   string s_table_name;
 
   map<NODETYPE, int> type_counter_;
+
+  MutationKind choose_mutation_kind();
+};
+
+enum class MutationKind {
+    Delete,
+    Insert,
+    Replace
+};
+
+struct MutationWeights {
+    int delete_weight = 20;
+    int insert_weight = 40;
+    int replace_weight = 40;
 };
 
 #endif
