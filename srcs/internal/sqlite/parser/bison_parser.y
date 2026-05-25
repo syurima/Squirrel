@@ -2518,17 +2518,17 @@ string_literal : STRING {
 
 bool_literal : TRUE {
   $$ = new BoolLiteral();
-  $$->b_val_ = true;
+  $$->bool_val_ = true;
 }
 | FALSE {
   $$ = new BoolLiteral();
-  $$->b_val_ = false;
+  $$->bool_val_ = false;
 };
 
 num_literal : FLOATVAL {
   $$ = new NumLiteral();
   $$->sub_type_ = CASE0;
-  $$->f_val_ = $1;
+  $$->float_val_ = $1;
 }
 | int_literal {
   $$ = new NumLiteral();

@@ -36,9 +36,9 @@ IR *Mutator::deep_copy_with_record(const IR *root, const IR *record) {
     copy_res = new IR(
         root->type_,
         OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_), left,
-        right, root->f_val_, root->str_val_, root->name_, root->mutated_times_);
+        right, root->float_val_, root->str_val_, root->name_, root->mutated_times_);
   else
-    copy_res = new IR(root->type_, NULL, left, right, root->f_val_,
+    copy_res = new IR(root->type_, NULL, left, right, root->float_val_,
                       root->str_val_, root->name_, root->mutated_times_);
 
   copy_res->id_type_ = root->id_type_;
@@ -912,7 +912,7 @@ string Mutator::fix(IR *root) {
   auto *op_ = root->op_;
   auto type_ = root->type_;
   auto str_val_ = root->str_val_;
-  auto f_val_ = root->f_val_;
+  auto float_val_ = root->float_val_;
   auto int_val_ = root->int_val_;
   auto id_type_ = root->id_type_;
 
@@ -1026,7 +1026,7 @@ string Mutator::extract_struct(IR *root, bool use_unique_names) {
     return "10";
   }
   if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_library.push_back((unsigned long)root->f_val_);
+    value_library.push_back((unsigned long)root->float_val_);
     return "0.1";
   }
   if (type_ == kconst_int) {
