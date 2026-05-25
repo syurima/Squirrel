@@ -1,11 +1,11 @@
-from ubuntu:22.04
+FROM ubuntu:22.04
 LABEL maintainer="Squirrel"
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # common config
-RUN apt-get update
-RUN apt-get -y install make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3\
+RUN apt-get -o Acquire::Retries=5 update
+RUN apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3 \
     clang ninja-build pkg-config clang-format \
     libpq-dev libyaml-cpp-dev lld llvm python3-fire
 
@@ -21,12 +21,26 @@ RUN chmod +w /etc/sudoers && \
 
 USER dobigthing
 WORKDIR /home
-
-RUN git clone https://github.com/s3team/Squirrel.git && \
-    cd Squirrel && git submodule update --init && \
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON && \
-    cmake --build build -j && \
-    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20
+ARG USE_REMOTE=0
+# Always copy the build context to a temp location so the Dockerfile can
+# either use the local context or perform a remote git clone depending on
+# the `USE_REMOTE` build-arg.
+COPY . /tmp/squirrel_context
+RUN if [ "$USE_REMOTE" = "1" ]; then \
+            git config --global http.version HTTP/1.1 && \
+            git config --global submodule.fetchJobs 1 && \
+            git clone --depth=1 https://github.com/s3team/Squirrel.git /home/Squirrel && \
+            cd /home/Squirrel && for attempt in 1 2 3; do \
+                git submodule update --init --recursive --depth 1 --jobs 1 && break; \
+            done; \
+        else \
+            mkdir -p /home/Squirrel && cp -a /tmp/squirrel_context/. /home/Squirrel/; \
+            rm -rf /home/Squirrel/AFLplusplus && \
+            cd /home/Squirrel && git submodule update --init --recursive --depth 1 --jobs 1; \
+        fi && \
+            cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON && \
+            cmake --build build -j && \
+            cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20
 
 ARG CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 
