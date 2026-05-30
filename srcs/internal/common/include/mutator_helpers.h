@@ -3,8 +3,26 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <random>
+#include <cstdint>
+#include <chrono>
 
 namespace mutator_common {
+
+// RNG wrapper (seedable) — prefer this over rand().
+inline std::mt19937 &get_global_rng() {
+  static thread_local std::mt19937 rng((std::random_device())());
+  return rng;
+}
+
+inline void seed_rng(uint32_t s) { get_global_rng().seed(s); }
+
+inline unsigned get_rand_int(unsigned range) {
+  if (range == 0) return 0;
+  std::uniform_int_distribution<unsigned> dist(0, range - 1);
+  return dist(get_global_rng());
+}
+
 
 inline std::string pick_random_string(
     const std::vector<std::string> &primary_library,

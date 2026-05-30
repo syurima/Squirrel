@@ -14,7 +14,7 @@ using std::set;
 
 class Mutator {
  public:
-  Mutator() { srand(time(nullptr)); }
+  Mutator() {}
 
   IR *deep_copy_with_record(const IR *root, const IR *record);
   unsigned long hash(IR *);

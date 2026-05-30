@@ -11,7 +11,8 @@ using std::vector;
 
 #include "../common/include/mutator_helpers.h"
 
-#define get_rand_int(range) rand() % (range)
+using mutator_common::get_rand_int;
+using mutator_common::seed_rng;
 
 void trim_string(string &);
 

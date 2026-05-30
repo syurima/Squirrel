@@ -9,9 +9,10 @@
 using std::string;
 using std::vector;
 
-#define get_rand_int(range) rand() % (range)
-
 #include "../common/include/mutator_helpers.h"
+
+using mutator_common::get_rand_int;
+using mutator_common::seed_rng;
 
 void trim_string(string &);
 

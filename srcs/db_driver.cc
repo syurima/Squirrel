@@ -23,6 +23,8 @@
 #include "env.h"
 #include "types.h"
 #include "yaml-cpp/yaml.h"
+#include "internal/common/include/mutator_helpers.h"
+#include <chrono>
 
 u8 *__afl_area_ptr;
 
@@ -169,6 +171,26 @@ int main(int argc, char *argv[]) {
     exit(-1);
   }
   YAML::Node config = YAML::LoadFile(config_file_path);
+  // Seed RNG: prefer explicit seed in config, then SQUIRREL_SEED env, else time.
+  auto seed_from_time = []() {
+    return static_cast<uint32_t>(
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+  };
+
+  try {
+    if (config["seed"]) {
+      uint32_t seed = config["seed"].as<uint32_t>();
+      mutator_common::seed_rng(seed);
+    } else if (getenv("SQUIRREL_SEED")) {
+      uint32_t seed = static_cast<uint32_t>(atoi(getenv("SQUIRREL_SEED")));
+      mutator_common::seed_rng(seed);
+    } else {
+      mutator_common::seed_rng(seed_from_time());
+    }
+  } catch (...) {
+    // If any issue with seed parsing, fall back to time-based seed.
+    mutator_common::seed_rng(seed_from_time());
+  }
   std::string db_name = config["db"].as<std::string>();
   std::string startup_cmd = config["startup_cmd"].as<std::string>();
   client::DBClient *database = client::create_client(db_name, config);

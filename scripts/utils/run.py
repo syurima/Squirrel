@@ -28,7 +28,7 @@ def set_env(database):
   os.environ["SQUIRREL_CONFIG"] = get_config_path(database)
 
 
-def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None):
+def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None, seed=None):
   # Precondition checks
   if database not in DBMS:
     print(f"Unsupported database. The supported ones are {DBMS}")
@@ -47,6 +47,10 @@ def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None):
     print("Invalid path for afl-fuzz")
 
   set_env(database)
+
+  # Allow optionally setting a deterministic seed from the harness.
+  if seed is not None:
+    os.environ["SQUIRREL_SEED"] = str(seed)
 
   output_id = str(uuid.uuid4())[:10]
   if database == "sqlite":
