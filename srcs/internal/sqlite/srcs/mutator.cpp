@@ -831,11 +831,11 @@ void Mutator::fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key,
                       set<IR *> &visited) {
   if (fixed_key->id_type_ == id_create_table_name) {
     string tablename = fixed_key->str_val_;
-    auto &colums = m_tables[tablename];
+    auto &columns = m_tables[tablename];
     for (auto &val : graph[fixed_key]) {
       if (val->id_type_ == id_create_column_name) {
         string new_column = gen_id_name();
-        colums.push_back(new_column);
+        columns.push_back(new_column);
         val->str_val_ = new_column;
         visited.insert(val);
       } else if (val->id_type_ == id_top_table_name) {
@@ -846,11 +846,11 @@ void Mutator::fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key,
     }
   } else if (fixed_key->id_type_ == id_top_table_name) {
     string tablename = fixed_key->str_val_;
-    auto &colums = m_tables[tablename];
+    auto &columns = m_tables[tablename];
 
     for (auto &val : graph[fixed_key]) {
       if (val->id_type_ == id_column_name) {
-        val->str_val_ = pick_random_or(colums, gen_id_name());
+        val->str_val_ = pick_random_or(columns, gen_id_name());
         visited.insert(val);
       } else if (val->id_type_ == id_table_name) {
         val->str_val_ = tablename;
@@ -880,8 +880,8 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
         if (iter.second.empty()) {
       if (iter.first->id_type_ == id_column_name) {
         string tablename = pick_random_or(v_table_names, gen_id_name());
-        auto &colums = m_tables[tablename];
-        iter.first->str_val_ = pick_random_or(colums, gen_id_name());
+        auto &columns = m_tables[tablename];
+        iter.first->str_val_ = pick_random_or(columns, gen_id_name());
         continue;
       }
     }
