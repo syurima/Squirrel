@@ -10,7 +10,10 @@
 
 #define LUCKY_NUMBER 500
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
 
 enum RELATIONTYPE {
   kRelationElement,
@@ -24,7 +27,7 @@ class Mutator {
 
   IR *deep_copy_with_record(const IR *root, const IR *record);
   unsigned long hash(IR *);
-  unsigned long hash(string &);
+  unsigned long hash(const string &);
 
   IR *ir_random_generator(vector<IR *> v_ir_collector);
 

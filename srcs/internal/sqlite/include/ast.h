@@ -9,7 +9,10 @@
 
 #include "define.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
 
 #define DECLARE_CLASS(v) class v;
 

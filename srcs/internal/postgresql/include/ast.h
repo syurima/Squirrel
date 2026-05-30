@@ -5,7 +5,10 @@
 #include <vector>
 
 #include "define.h"
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
 
 enum NODETYPE {
 #define DECLARE_TYPE(v) v,

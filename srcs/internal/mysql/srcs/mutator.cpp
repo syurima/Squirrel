@@ -493,7 +493,7 @@ unsigned long Mutator::get_a_val() {
   return vector_rand_ele(value_library_);
 }
 
-unsigned long Mutator::hash(string &sql) {
+unsigned long Mutator::hash(const string &sql) {
   return ducking_hash(sql.c_str(), sql.size());
 }
 

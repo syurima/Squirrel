@@ -10,7 +10,10 @@
 
 #define LUCKY_NUMBER 500
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
 
 enum RELATIONTYPE {
   kRelationElement,
