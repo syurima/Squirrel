@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
   // is stopped and restarted, we should not start another server.
   __afl_map_shm();
   if (!database->check_alive()) {
-    system(startup_cmd.c_str());
+    (void)system(startup_cmd.c_str());
     sleep(5);
   }
 

@@ -15,6 +15,8 @@
 #include "../../common/include/mutator_helpers.h"
 #define _NON_REPLACE_
 
+using mutator_common::pick_random_element;
+
 // Implementation moved to srcs/internal/common/srcs/mutator_core.cpp
 // and compiled into the `${dbms}_impl` OBJECT target by CMake.
 
@@ -201,7 +203,7 @@ pair<string, string> Mutator::get_data_2d_by_type(DATATYPE type1,
   for (auto &i : data_library_2d_[type1]) {
     if (counter++ == rint) {
       return std::make_pair(i.first,
-                pick_random_element(i.second[type2]));
+                            pick_random_element(i.second[type2]));
     }
   }
   return res;
@@ -231,26 +233,6 @@ IR *Mutator::get_ir_from_library(IRTYPE type) {
 #endif
   if (ir_library_[type].empty()) return empty_ir;
   return pick_random_element(ir_library_[type]);
-}
-
-string Mutator::get_a_string() {
-  return mutator_common::pick_random_string(string_library_,
-                                            common_string_library_);
-}
-
-unsigned long Mutator::get_a_val() {
-  assert(value_library_.size());
-
-  return pick_random_element(value_library_);
-}
-
-unsigned long Mutator::hash(const string &sql) {
-  return ducking_hash(sql.c_str(), sql.size());
-}
-
-unsigned long Mutator::hash(IR *root) {
-  auto tmp_str = move(root->to_string());
-  return this->hash(tmp_str);
 }
 
 // Implementations for many Mutator methods were moved to

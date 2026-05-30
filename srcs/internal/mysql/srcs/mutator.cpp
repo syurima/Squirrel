@@ -15,6 +15,8 @@
 #include "../../common/include/mutator_helpers.h"
 #define _NON_REPLACE_
 
+using mutator_common::pick_random_element;
+
 // Implementation moved to srcs/internal/common/srcs/mutator_core.cpp
 // and compiled into the `${dbms}_impl` OBJECT target by CMake.
 

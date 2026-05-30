@@ -19,7 +19,7 @@
 
 using std::string;
 
-#include "../common/include/mutator_helpers.h"
+#include "../../common/include/mutator_helpers.h"
 
 using mutator_common::get_rand_int;
 using mutator_common::seed_rng;

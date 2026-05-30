@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <cfloat>
 #include <climits>
 #include <cstdio>
@@ -470,6 +471,98 @@ bool Mutator::connect_back(map<IR **, IR *> &m_save) {
 }
 
 static set<IR *> visited;
+
+bool Mutator::fix_one(IR *stmt_root,
+                      map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+  visited.clear();
+  analyze_scope(stmt_root);
+  auto graph = build_graph(stmt_root, scope_library);
+
+#ifdef GRAPHLOG
+  for (auto &iter : graph) {
+    cout << "Node: " << iter.first->to_string() << " connected with:" << endl;
+    for (auto &k : iter.second) {
+      cout << k->to_string() << endl;
+    }
+    cout << "--------" << endl;
+  }
+  cout << "OUTPUT END" << endl;
+#endif
+  return fill_stmt_graph(graph);
+}
+
+void Mutator::analyze_scope(IR *stmt_root) {
+  if (stmt_root->left_) {
+    analyze_scope(stmt_root->left_);
+  }
+  if (stmt_root->right_) {
+    analyze_scope(stmt_root->right_);
+  }
+
+  auto data_type = stmt_root->data_type_;
+  if (data_type == kDataWhatever) return;
+
+  scope_library_[stmt_root->scope_][data_type].push_back(stmt_root);
+}
+
+map<IR *, vector<IR *>> Mutator::build_graph(
+    IR *stmt_root, map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+  map<IR *, vector<IR *>> res;
+  deque<IR *> bfs = {stmt_root};
+
+  while (!bfs.empty()) {
+    auto node = bfs.front();
+    bfs.pop_front();
+
+    auto cur_scope = node->scope_;
+    auto cur_data_flag = node->data_flag_;
+    auto cur_data_type = node->data_type_;
+
+    if (find(int_types_.begin(), int_types_.end(), node->type_) !=
+        int_types_.end()) {
+      if (get_rand_int(100) > 50)
+        node->int_val_ = pick_random_element(value_library_);
+      else
+        node->int_val_ = get_rand_int(100);
+    } else if (find(float_types_.begin(), float_types_.end(), node->type_) !=
+               float_types_.end()) {
+      node->float_val_ = (double)(get_rand_int(100000000));
+    }
+
+    if (node->left_) bfs.push_back(node->left_);
+    if (node->right_) bfs.push_back(node->right_);
+    if (cur_data_type == kDataWhatever) continue;
+
+    res[node];
+    cur_scope--;
+
+    if (relationmap_.find(cur_data_type) != relationmap_.end()) {
+      auto &target_data_type_map = relationmap_[cur_data_type];
+      for (auto &target : target_data_type_map) {
+        IR *pick_node = NULL;
+        if (isMapToClosestOne(cur_data_flag)) {
+          pick_node = find_closest_node(stmt_root, node, target.first);
+          if (pick_node && pick_node->scope_ != cur_scope) {
+            pick_node = NULL;
+          }
+        } else {
+          if (!node->str_val_.empty()) {
+          }
+
+          if (!isDefine(cur_data_flag) ||
+              relationmap_[cur_data_type][target.first] != kRelationElement) {
+              if (!scope_library[cur_scope][target.first].empty())
+              pick_node = pick_random_element(
+                scope_library[cur_scope][target.first]);
+          }
+        }
+        if (pick_node != NULL) res[pick_node].push_back(node);
+      }
+    }
+  }
+
+  return res;
+}
 
 bool Mutator::fill_stmt_graph(map<IR *, vector<IR *>> &graph) {
   bool res = true;

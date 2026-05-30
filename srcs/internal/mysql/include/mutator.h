@@ -10,10 +10,7 @@
 
 #define LUCKY_NUMBER 500
 
-using std::string;
-using std::vector;
-using std::map;
-using std::set;
+using namespace std;
 
 enum RELATIONTYPE {
   kRelationElement,
@@ -89,14 +86,14 @@ class Mutator {
 
   unsigned int calc_node(IR *root);
   bool replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
-                                            DATATYPE c_data_type, string &p_key,
-                                            string &old_c_value,
-                                            string &new_c_value);
+                                            DATATYPE c_data_type, const string &p_key,
+                                            const string &old_c_value,
+                                            const string &new_c_value);
   bool remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
-                                           DATATYPE c_data_type, string &p_key);
-  bool replace_one_from_datalibrary(DATATYPE datatype, string &old_str,
-                                    string &new_str);
-  bool remove_one_from_datalibrary(DATATYPE datatype, string &key);
+                                           DATATYPE c_data_type, const string &p_key);
+  bool replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
+                                    const string &new_str);
+  bool remove_one_from_datalibrary(DATATYPE datatype, const string &key);
   ~Mutator();
   void debug(IR *root);
   int try_fix(char *buf, int len, char *&new_buf, int &new_len);

@@ -1,14 +1,13 @@
 #ifndef __AST_H__
 #define __AST_H__
+#include <map>
 #include <iostream>
 #include <string>
+#include <set>
 #include <vector>
 
 #include "define.h"
-using std::string;
-using std::vector;
-using std::map;
-using std::set;
+using namespace std;
 
 enum NODETYPE {
 #define DECLARE_TYPE(v) v,
