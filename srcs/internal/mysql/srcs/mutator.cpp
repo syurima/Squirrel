@@ -811,7 +811,7 @@ bool Mutator::fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir) {
   return res;
 }
 
-static bool replace_in_vector(string &old_str, string &new_str,
+static bool replace_in_vector(const string &old_str, const string &new_str,
                               vector<string> &victim) {
   for (int i = 0; i < victim.size(); i++) {
     if (victim[i] == old_str) {
@@ -822,7 +822,7 @@ static bool replace_in_vector(string &old_str, string &new_str,
   return false;
 }
 
-static bool remove_in_vector(string &str_to_remove, vector<string> &victim) {
+static bool remove_in_vector(const string &str_to_remove, vector<string> &victim) {
   for (auto iter = victim.begin(); iter != victim.end(); iter++) {
     if (*iter == str_to_remove) {
       victim.erase(iter);
@@ -832,18 +832,18 @@ static bool remove_in_vector(string &str_to_remove, vector<string> &victim) {
   return false;
 }
 
-bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, string &key) {
+bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, const string &key) {
   return remove_in_vector(key, data_library_[datatype]);
 }
 
-bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, string &old_str,
-                                           string &new_str) {
+bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
+                                           const string &new_str) {
   return replace_in_vector(old_str, new_str, data_library_[datatype]);
 }
 
 bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
                                                   DATATYPE c_data_type,
-                                                  string &p_key) {
+                                                  const string &p_key) {
   for (auto &value : data_library_2d_[p_datatype][p_key][c_data_type]) {
     remove_one_from_datalibrary(c_data_type, value);
   }
@@ -862,9 +862,9 @@ bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
 
 bool Mutator::replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
                                                    DATATYPE c_data_type,
-                                                   string &p_key,
-                                                   string &old_c_value,
-                                                   string &new_c_value) {
+                                                   const string &p_key,
+                                                   const string &old_c_value,
+                                                   const string &new_c_value) {
   replace_one_from_datalibrary(c_data_type, old_c_value, new_c_value);
   replace_in_vector(old_c_value, new_c_value,
                     data_library_2d_[p_datatype][p_key][c_data_type]);
