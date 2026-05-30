@@ -10,9 +10,8 @@ using std::string;
 using std::vector;
 
 #define get_rand_int(range) rand() % (range)
-#define vector_rand_ele_safe(a) \
-  (a.size() != 0 ? a[get_rand_int(a.size())] : gen_id_name())
-#define vector_rand_ele(a) (a[get_rand_int(a.size())])
+
+#include "../common/include/mutator_helpers.h"
 
 void trim_string(string &);
 

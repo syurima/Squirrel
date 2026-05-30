@@ -18,11 +18,9 @@
 #include <cstdlib>
 
 using std::string;
-
 #define get_rand_int(range) rand() % (range)
-//#define vector_rand_ele(a) (a[get_rand_int(a.size())])
-#define vector_rand_ele(a) \
-  (a.size() != 0 ? a[get_rand_int(a.size())] : gen_id_name())
+
+#include "../common/include/mutator_helpers.h"
 IR *deep_copy(const IR *root);
 void deep_delete(IR *root);
 

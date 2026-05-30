@@ -12,9 +12,12 @@
 #include "../include/ast.h"
 #include "../include/define.h"
 #include "../include/utils.h"
+#include "../../common/include/mutator_helpers.h"
 #define _NON_REPLACE_
 
 using namespace std;
+using mutator_common::pick_random_element;
+using mutator_common::pick_random_or;
 
 vector<string> Mutator::common_string_library;
 vector<unsigned long> Mutator::value_library;
@@ -661,22 +664,13 @@ IR *Mutator::get_from_library_3D(IR *ir) {
 }
 
 string Mutator::get_a_string() {
-  unsigned com_size = common_string_library.size();
-  unsigned lib_size = string_library.size();
-  unsigned double_lib_size = lib_size * 2;
-
-  unsigned rand_int = get_rand_int(double_lib_size + com_size);
-  if (rand_int < double_lib_size) {
-    return string_library[rand_int >> 1];
-  } else {
-    rand_int -= double_lib_size;
-    return common_string_library[rand_int];
-  }
+  return mutator_common::pick_random_string(string_library,
+                                            common_string_library);
 }
 
 unsigned long Mutator::get_a_val() {
   if (value_library.size() == 0) return 0xdeadbeef;
-  return value_library[get_rand_int(value_library.size())];
+  return pick_random_element(value_library);
 }
 
 unsigned long Mutator::get_library_size() {
@@ -856,7 +850,7 @@ void Mutator::fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key,
 
     for (auto &val : graph[fixed_key]) {
       if (val->id_type_ == id_column_name) {
-        val->str_val_ = vector_rand_ele(colums);
+        val->str_val_ = pick_random_or(colums, gen_id_name());
         visited.insert(val);
       } else if (val->id_type_ == id_table_name) {
         val->str_val_ = tablename;
@@ -883,11 +877,11 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
       continue;
     }
     visited.insert(iter.first);
-    if (iter.second.empty()) {
+        if (iter.second.empty()) {
       if (iter.first->id_type_ == id_column_name) {
-        string tablename = vector_rand_ele(v_table_names);
+        string tablename = pick_random_or(v_table_names, gen_id_name());
         auto &colums = m_tables[tablename];
-        iter.first->str_val_ = vector_rand_ele(colums);
+        iter.first->str_val_ = pick_random_or(colums, gen_id_name());
         continue;
       }
     }
@@ -898,7 +892,7 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
         v_table_names.push_back(new_table_name);
         iter.first->str_val_ = new_table_name;
       } else {
-        iter.first->str_val_ = vector_rand_ele(v_table_names);
+        iter.first->str_val_ = pick_random_or(v_table_names, gen_id_name());
       }
       fix_one(graph, iter.first, visited);
     }

@@ -12,9 +12,11 @@
 #include "../include/ast.h"
 #include "../include/define.h"
 #include "../include/utils.h"
+#include "../../common/include/mutator_helpers.h"
 #define _NON_REPLACE_
 
 using namespace std;
+using mutator_common::pick_random_element;
 
 //#define GRAPHLOG
 
@@ -442,7 +444,8 @@ pair<string, string> Mutator::get_data_2d_by_type(DATATYPE type1,
   int counter = 0;
   for (auto &i : data_library_2d_[type1]) {
     if (counter++ == rint) {
-      return std::make_pair(i.first, vector_rand_ele(i.second[type2]));
+      return std::make_pair(i.first,
+                pick_random_element(i.second[type2]));
     }
   }
   return res;
@@ -471,27 +474,18 @@ IR *Mutator::get_ir_from_library(IRTYPE type) {
   }
 #endif
   if (ir_library_[type].empty()) return empty_ir;
-  return vector_rand_ele(ir_library_[type]);
+  return pick_random_element(ir_library_[type]);
 }
 
 string Mutator::get_a_string() {
-  unsigned com_size = common_string_library_.size();
-  unsigned lib_size = string_library_.size();
-  unsigned double_lib_size = lib_size * 2;
-
-  unsigned rand_int = get_rand_int(double_lib_size + com_size);
-  if (rand_int < double_lib_size) {
-    return string_library_[rand_int >> 1];
-  } else {
-    rand_int -= double_lib_size;
-    return common_string_library_[rand_int];
-  }
+  return mutator_common::pick_random_string(string_library_,
+                                            common_string_library_);
 }
 
 unsigned long Mutator::get_a_val() {
   assert(value_library_.size());
 
-  return vector_rand_ele(value_library_);
+  return pick_random_element(value_library_);
 }
 
 unsigned long Mutator::hash(const string &sql) {
@@ -728,7 +722,7 @@ map<IR *, vector<IR *>> Mutator::build_graph(
     if (find(int_types_.begin(), int_types_.end(), node->type_) !=
         int_types_.end()) {
       if (get_rand_int(100) > 50)
-        node->int_val_ = vector_rand_ele(value_library_);
+        node->int_val_ = pick_random_element(value_library_);
       else
         node->int_val_ = get_rand_int(100);
     } else if (find(float_types_.begin(), float_types_.end(), node->type_) !=
@@ -758,9 +752,9 @@ map<IR *, vector<IR *>> Mutator::build_graph(
 
           if (!isDefine(cur_data_flag) ||
               relationmap_[cur_data_type][target.first] != kRelationElement) {
-            if (!scope_library[cur_scope][target.first].empty())
-              pick_node =
-                  vector_rand_ele(scope_library[cur_scope][target.first]);
+              if (!scope_library[cur_scope][target.first].empty())
+              pick_node = pick_random_element(
+                scope_library[cur_scope][target.first]);
           }
         }
         if (pick_node != NULL) res[pick_node].push_back(node);
@@ -890,7 +884,7 @@ bool Mutator::fill_one(IR *ir) {
   } else if (isAlias(ir->data_flag_)) {
     string alias_target;
     if (data_library_[type].size() != 0)
-      alias_target = vector_rand_ele(data_library_[type]);
+      alias_target = pick_random_element(data_library_[type]);
     else {
       alias_target = get_rand_int(2) ? "v0" : "v1";
     }
@@ -912,7 +906,7 @@ bool Mutator::fill_one(IR *ir) {
       ir->str_val_ = "v0";
       return false;
     }
-    ir->str_val_ = vector_rand_ele(data_library_[type]);
+    ir->str_val_ = pick_random_element(data_library_[type]);
     if (isUndefine(ir->data_flag_)) {
       remove_one_from_datalibrary(ir->data_type_, ir->str_val_);
       if (has_key(data_library_2d_, type) &&
@@ -934,7 +928,7 @@ bool Mutator::fill_one(IR *ir) {
     if (g_data_library_[type].empty()) {
       return false;
     }
-    ir->str_val_ = vector_rand_ele(g_data_library_[type]);
+    ir->str_val_ = pick_random_element(g_data_library_[type]);
     return true;
   } else if (g_data_library_2d_.find(type) != g_data_library_2d_.end()) {
     int choice = get_rand_int(g_data_library_2d_[type].size());
@@ -1027,7 +1021,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
               break;
             }
             child->str_val_ =
-                vector_rand_ele(data_library_2d_[p_type][p_str][c_type]);
+                pick_random_element(
+                  data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_,
                              data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_, data_library_[c_type]);
@@ -1036,7 +1031,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                      data_library_2d_[p_type][p_str].end()) {
             if (data_library_2d_[p_type][p_str][c_type].empty() == false) {
               child->str_val_ =
-                  vector_rand_ele(data_library_2d_[p_type][p_str][c_type]);
+                      pick_random_element(
+                        data_library_2d_[p_type][p_str][c_type]);
             }
           } else {
             if (data_library_[c_type].empty()) {
@@ -1046,7 +1042,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                 child->str_val_ = "v1";
               }
             } else
-              child->str_val_ = vector_rand_ele(data_library_[c_type]);
+                child->str_val_ =
+                  pick_random_element(data_library_[c_type]);
           }
         } else {
         }
@@ -1057,7 +1054,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
               g_data_library_2d_[p_type][p_str].end()) {
             if (g_data_library_2d_[p_type][p_str][c_type].empty() == false) {
               child->str_val_ =
-                  vector_rand_ele(g_data_library_2d_[p_type][p_str][c_type]);
+                      pick_random_element(
+                        g_data_library_2d_[p_type][p_str][c_type]);
             }
           }
         }
