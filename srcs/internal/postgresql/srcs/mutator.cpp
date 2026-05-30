@@ -805,26 +805,8 @@ bool Mutator::fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir) {
   return res;
 }
 
-static bool replace_in_vector(const string &old_str, const string &new_str,
-                              vector<string> &victim) {
-  for (int i = 0; i < victim.size(); i++) {
-    if (victim[i] == old_str) {
-      victim[i] = new_str;
-      return true;
-    }
-  }
-  return false;
-}
-
-static bool remove_in_vector(const string &str_to_remove, vector<string> &victim) {
-  for (auto iter = victim.begin(); iter != victim.end(); iter++) {
-    if (*iter == str_to_remove) {
-      victim.erase(iter);
-      return true;
-    }
-  }
-  return false;
-}
+using mutator_common::replace_in_vector;
+using mutator_common::remove_in_vector;
 
 bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, const string &key) {
   return remove_in_vector(key, data_library_[datatype]);
