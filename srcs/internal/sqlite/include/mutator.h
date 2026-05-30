@@ -18,7 +18,7 @@ class Mutator {
 
   IR *deep_copy_with_record(const IR *root, const IR *record);
   unsigned long hash(IR *);
-  unsigned long hash(string);
+  unsigned long hash(const string &);
 
   IR *ir_random_generator(vector<IR *> v_ir_collector);
 
@@ -41,7 +41,7 @@ class Mutator {
   IR *get_from_library_3D(IR *);
   IR *get_from_library_2D(IR *);
 
-  void init(string f_testcase, string f_common_string = "", string pragma = "");
+  void init(const string &f_testcase, const string &f_common_string = "", const string &pragma = "");
   string fix(IR *root);
   string extract_struct(IR *root, bool use_unique_names = false);
   void add_new_table(IR *root, string &table_name);

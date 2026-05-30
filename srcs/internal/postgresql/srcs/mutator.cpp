@@ -99,7 +99,7 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
   return;
 }
 
-void Mutator::init_common_string(string filename) {
+void Mutator::init_common_string(const string &filename) {
   common_string_library_.push_back("DO_NOT_BE_EMPTY");
   if (filename != "") {
     ifstream input_string(filename);
@@ -111,7 +111,7 @@ void Mutator::init_common_string(string filename) {
   }
 }
 
-void Mutator::init_data_library_2d(string filename) {
+void Mutator::init_data_library_2d(const string &filename) {
   ifstream input_file(filename);
   string s;
 
@@ -135,7 +135,7 @@ void Mutator::init_data_library_2d(string filename) {
   return;
 }
 
-void Mutator::init_data_library(string filename) {
+void Mutator::init_data_library(const string &filename) {
   ifstream input_file(filename);
   string s;
 
@@ -181,7 +181,7 @@ void Mutator::init_value_library() {
   return;
 }
 
-void Mutator::init_ir_library(string filename) {
+void Mutator::init_ir_library(const string &filename) {
   ifstream input_file(filename);
   string line;
 
@@ -202,7 +202,7 @@ void Mutator::init_ir_library(string filename) {
   return;
 }
 
-void Mutator::init_safe_generate_type(string filename) {
+void Mutator::init_safe_generate_type(const string &filename) {
   ifstream input_file(filename);
   string line;
 
@@ -214,8 +214,9 @@ void Mutator::init_safe_generate_type(string filename) {
   }
 }
 
-void Mutator::init(string f_testcase, string f_common_string, string file2d,
-                   string file1d, string f_gen_type) {
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &file2d, const string &file1d,
+                   const string &f_gen_type) {
   if (!f_testcase.empty()) init_ir_library(f_testcase);
 
   // init value_library_
@@ -493,7 +494,7 @@ unsigned long Mutator::get_a_val() {
   return vector_rand_ele(value_library_);
 }
 
-unsigned long Mutator::hash(string &sql) {
+unsigned long Mutator::hash(const string &sql) {
   return ducking_hash(sql.c_str(), sql.size());
 }
 
@@ -541,7 +542,7 @@ void Mutator::reset_data_library() {
   data_library_2d_.clear();
 }
 
-string Mutator::parse_data(string &input) {
+string Mutator::parse_data(const string &input) {
   string res;
   if (!input.compare("_int_")) {
     res = to_string(get_a_val());
@@ -810,7 +811,7 @@ bool Mutator::fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir) {
   return res;
 }
 
-static bool replace_in_vector(string &old_str, string &new_str,
+static bool replace_in_vector(const string &old_str, string &new_str,
                               vector<string> &victim) {
   for (int i = 0; i < victim.size(); i++) {
     if (victim[i] == old_str) {
@@ -831,18 +832,18 @@ static bool remove_in_vector(string &str_to_remove, vector<string> &victim) {
   return false;
 }
 
-bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, string &key) {
+bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, const string &key) {
   return remove_in_vector(key, data_library_[datatype]);
 }
 
-bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, string &old_str,
+bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
                                            string &new_str) {
   return replace_in_vector(old_str, new_str, data_library_[datatype]);
 }
 
 bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
                                                   DATATYPE c_data_type,
-                                                  string &p_key) {
+                                                  const string &p_key) {
   for (auto &value : data_library_2d_[p_datatype][p_key][c_data_type]) {
     remove_one_from_datalibrary(c_data_type, value);
   }
@@ -861,7 +862,7 @@ bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
 
 bool Mutator::replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
                                                    DATATYPE c_data_type,
-                                                   string &p_key,
+                                                   const string &p_key,
                                                    string &old_c_value,
                                                    string &new_c_value) {
   replace_one_from_datalibrary(c_data_type, old_c_value, new_c_value);

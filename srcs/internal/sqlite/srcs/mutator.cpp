@@ -47,7 +47,7 @@ IR *Mutator::deep_copy_with_record(const IR *root, const IR *record) {
     this->record_ = copy_res;
   }
 
-  return copy_res;
+  unsigned long Mutator::hash(const string &sql) {
 }
 
 bool Mutator::check_node_num(IR *root, unsigned int limit) {
@@ -64,7 +64,7 @@ bool Mutator::check_node_num(IR *root, unsigned int limit) {
         break;
       }
     }
-
+      void Mutator::init(const string &f_testcase, const string &f_common_string, const string &pragma) {
   return is_good;
 }
 

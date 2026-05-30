@@ -99,7 +99,7 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
   return;
 }
 
-void Mutator::init_common_string(string filename) {
+void Mutator::init_common_string(const string &filename) {
   common_string_library_.push_back("DO_NOT_BE_EMPTY");
   if (filename != "") {
     ifstream input_string(filename);
@@ -111,7 +111,7 @@ void Mutator::init_common_string(string filename) {
   }
 }
 
-void Mutator::init_data_library_2d(string filename) {
+void Mutator::init_data_library_2d(const string &filename) {
   ifstream input_file(filename);
   string s;
 
@@ -135,7 +135,7 @@ void Mutator::init_data_library_2d(string filename) {
   return;
 }
 
-void Mutator::init_data_library(string filename) {
+void Mutator::init_data_library(const string &filename) {
   ifstream input_file(filename);
   string s;
 
@@ -181,7 +181,7 @@ void Mutator::init_value_library() {
   return;
 }
 
-void Mutator::init_ir_library(string filename) {
+void Mutator::init_ir_library(const string &filename) {
   ifstream input_file(filename);
   string line;
 
@@ -202,7 +202,7 @@ void Mutator::init_ir_library(string filename) {
   return;
 }
 
-void Mutator::init_safe_generate_type(string filename) {
+void Mutator::init_safe_generate_type(const string &filename) {
   ifstream input_file(filename);
   string line;
 
@@ -214,8 +214,9 @@ void Mutator::init_safe_generate_type(string filename) {
   }
 }
 
-void Mutator::init(string f_testcase, string f_common_string, string file2d,
-                   string file1d, string f_gen_type) {
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &file2d, const string &file1d,
+                   const string &f_gen_type) {
   if (!f_testcase.empty()) init_ir_library(f_testcase);
 
   // init value_library_
@@ -541,7 +542,7 @@ void Mutator::reset_data_library() {
   data_library_2d_.clear();
 }
 
-string Mutator::parse_data(string &input) {
+string Mutator::parse_data(const string &input) {
   string res;
   if (!input.compare("_int_")) {
     res = to_string(get_a_val());

@@ -41,17 +41,17 @@ class Mutator {
   bool replace(IR *root, IR *old_ir, IR *new_ir);  // done
   IR *locate_parent(IR *root, IR *old_ir);         // done
 
-  void init(string f_testcase = "", string f_common_string = "",
-            string file2d = "", string file1d = "",
-            string f_gen_type = "");  // DONE
+  void init(const string &f_testcase = "", const string &f_common_string = "",
+            const string &file2d = "", const string &file1d = "",
+            const string &f_gen_type = "");  // DONE
 
-  void init_ir_library(string filename);          // DONE
+  void init_ir_library(const string &filename);   // DONE
   void init_value_library();                      // DONE
-  void init_common_string(string filename);       // DONE
-  void init_data_library(string filename);        // DONE
-  void init_data_library_2d(string filename);     // DONE
-  void init_not_mutatable_type(string filename);  // DONE
-  void init_safe_generate_type(string filename);
+  void init_common_string(const string &filename);  // DONE
+  void init_data_library(const string &filename);    // DONE
+  void init_data_library_2d(const string &filename); // DONE
+  void init_not_mutatable_type(const string &filename);  // DONE
+  void init_safe_generate_type(const string &filename);
   void add_ir_to_library(IR *);  // DONE
 
   string get_a_string();            // DONE
@@ -64,7 +64,7 @@ class Mutator {
 
   void reset_data_library();  // DONE
 
-  string parse_data(string &);  // DONE
+  string parse_data(const string &);  // DONE
   void extract_struct(IR *, bool use_unique_names = false);  // Done
 
   bool fix(IR *root);  // done
