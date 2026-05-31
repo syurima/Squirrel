@@ -8,7 +8,7 @@
 
 // Include dialect-specific and common headers so this file can be compiled
 // as a standalone translation unit when added to `${dbms}_impl`.
-#include "mutator.h"
+#include "../include/mutator.h"
 #include "ast.h"
 #include "define.h"
 #include "utils.h"

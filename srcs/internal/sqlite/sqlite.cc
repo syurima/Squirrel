@@ -9,7 +9,7 @@
 #include "utils.h"
 
 SQLiteDB *create_sqlite() { return new SQLiteDB; }
-SQLiteDB::SQLiteDB() { mutator_ = std::make_unique<Mutator>(); }
+SQLiteDB::SQLiteDB() { mutator_ = std::make_unique<MutatorSqlite>(); }
 
 bool SQLiteDB::initialize(YAML::Node config) {
   const std::string init_lib_path = config["init_lib"].as<std::string>();
@@ -37,7 +37,7 @@ bool SQLiteDB::save_interesting_query(const std::string &query) {
       auto root_ir = p_strip_sql->translate(ir_set);
       p_strip_sql->deep_delete();
       // mutator_->add_ir_to_library(root_ir);
-      mutator_->add_to_library(root_ir);
+      mutator_->add_ir_to_library(root_ir);
       deep_delete(root_ir);
     }
     return true;

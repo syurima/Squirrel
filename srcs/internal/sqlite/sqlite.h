@@ -6,7 +6,7 @@
 
 #include "db.h"
 
-class Mutator;
+class MutatorSqlite;
 class IR;
 class SQLiteDB : public DataBase {
  public:
@@ -23,7 +23,7 @@ class SQLiteDB : public DataBase {
 
  private:
   size_t validate_all(const std::vector<IR *> &ir_set);
-  std::unique_ptr<Mutator> mutator_;
+  std::unique_ptr<MutatorSqlite> mutator_;
   std::stack<std::string> validated_test_cases_;
 };
 
