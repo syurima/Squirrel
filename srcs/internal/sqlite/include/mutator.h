@@ -3,11 +3,28 @@
 
 #include "ast.h"
 #include "define.h"
-#include "utils.h"
+//#include "utils.h"
 
 #define LUCKY_NUMBER 500
 
 using namespace std;
+
+enum class MutationKind {
+    Delete,
+    Insert,
+    Replace
+};
+
+struct MutationWeights {
+    int delete_weight = 20;
+    int insert_weight = 40;
+    int replace_weight = 40;
+};
+
+struct MutationStats {
+  unsigned long used = 0;
+  double total_reward = 0.0;
+};
 
 class Mutator {
  public:
@@ -89,6 +106,14 @@ class Mutator {
   string s_table_name;
 
   map<NODETYPE, int> type_counter_;
+
+  MutationWeights base_weights_;
+  MutationStats delete_stats_;
+  MutationStats insert_stats_;
+  MutationStats replace_stats_;
+  
+  void update_mutation_stats(MutationKind kind, IR *result);
+  MutationKind choose_mutation_kind_ucb();
 };
 
 #endif

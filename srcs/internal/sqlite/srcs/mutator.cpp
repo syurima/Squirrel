@@ -1,5 +1,5 @@
 #include "../include/mutator.h"
-
+#include <cmath>
 #include <assert.h>
 
 #include <algorithm>
@@ -12,6 +12,7 @@
 #include "../include/ast.h"
 #include "../include/define.h"
 #include "../include/utils.h"
+
 #define _NON_REPLACE_
 
 using namespace std;
@@ -192,7 +193,7 @@ void Mutator::init(string f_testcase, string f_common_string, string pragma) {
     string v = s.substr(pos + 2);
     if (find(cmds_.begin(), cmds_.end(), k) == cmds_.end()) {
       cmds_.push_back(k);
-      cout << "Pushing: " << s << std::endl;
+      cout << "Pushing: " << s << endl;
     }
     m_cmd_value_lib_[k].push_back(v);
   }
@@ -211,20 +212,40 @@ vector<IR *> Mutator::mutate(IR *input) {
   vector<IR *> res;
 
   if (!lucky_enough_to_be_mutated(input->mutated_times_)) {
-    return res;  // return a empty set if the IR is not mutated
+    return res;
   }
 
-  res.push_back(strategy_delete(input));
-  res.push_back(strategy_insert(input));
-  res.push_back(strategy_replace(input));
+  MutationKind kind = choose_mutation_kind_ucb();
 
-  // may do some simple filter for res, like removing some duplicated cases
+  IR *mutated = NULL;
+
+  switch (kind) {
+    case MutationKind::Delete:
+      mutated = strategy_delete(input);
+      break;
+
+    case MutationKind::Insert:
+      mutated = strategy_insert(input);
+      break;
+
+    case MutationKind::Replace:
+      mutated = strategy_replace(input);
+      break;
+  }
+
+  update_mutation_stats(kind, mutated);
+
+  if (mutated != NULL) {
+    res.push_back(mutated);
+  }
 
   input->mutated_times_ += res.size();
+
   for (auto i : res) {
     if (i == NULL) continue;
     i->mutated_times_ = input->mutated_times_;
   }
+
   return res;
 }
 
@@ -961,15 +982,15 @@ string Mutator::fix(IR *root) {
     return "'" + s + "'";
   }
   if (type_ == kIntLiteral)
-    return std::to_string(value_library[get_rand_int(value_library.size())]);
+    return to_string(value_library[get_rand_int(value_library.size())]);
   if (type_ == kFloatLiteral || type_ == kconst_float)
-    return std::to_string(
+    return to_string(
         float(value_library[get_rand_int(value_library.size())]) + 0.1);
   if (type_ == kconst_str)
     return string_library[get_rand_int(string_library.size())];
   ;
   if (type_ == kconst_int)
-    return std::to_string(value_library[get_rand_int(value_library.size())]);
+    return to_string(value_library[get_rand_int(value_library.size())]);
 
   if (!str_val_.empty()) return str_val_;
 
@@ -1009,9 +1030,9 @@ string Mutator::extract_struct(IR *root, bool use_unique_names) {
   }
   if (type_ == kPrepareTargetQuery || type_ == kStringLiteral) {
     string str_val = str_val_;
-    str_val.erase(std::remove(str_val.begin(), str_val.end(), '\''),
+    str_val.erase(remove(str_val.begin(), str_val.end(), '\''),
                   str_val.end());
-    str_val.erase(std::remove(str_val.begin(), str_val.end(), '"'),
+    str_val.erase(remove(str_val.begin(), str_val.end(), '"'),
                   str_val.end());
     string magic_string = magic_string_generator(str_val);
     unsigned long h = hash(magic_string);
@@ -1104,4 +1125,65 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
   new_len = fixed.size();
 
   return 1;
+}
+
+void Mutator::update_mutation_stats(MutationKind kind, IR *result) {
+  MutationStats *stats = NULL;
+
+  switch (kind) {
+    case MutationKind::Delete:
+      stats = &delete_stats_;
+      break;
+
+    case MutationKind::Insert:
+      stats = &insert_stats_;
+      break;
+
+    case MutationKind::Replace:
+      stats = &replace_stats_;
+      break;
+  }
+
+  stats->used++;
+
+
+  if (result != NULL) {
+    stats->total_reward += 1.0;
+  } else {
+    stats->total_reward -= 0.2;
+  }
+}
+
+static double ucb_score(const MutationStats &stats, unsigned long total_used) {
+  if (stats.used == 0) {
+    return 1e9;
+  }
+
+  double average_reward = stats.total_reward / stats.used;
+  double exploration = sqrt(log(total_used + 1.0) / stats.used);;
+
+  const double c = 1.4;
+
+  return average_reward + c * exploration;
+}
+
+MutationKind Mutator::choose_mutation_kind_ucb() {
+  unsigned long total_used =
+      delete_stats_.used +
+      insert_stats_.used +
+      replace_stats_.used;
+
+  double delete_score = ucb_score(delete_stats_, total_used);
+  double insert_score = ucb_score(insert_stats_, total_used);
+  double replace_score = ucb_score(replace_stats_, total_used);
+
+  if (delete_score >= insert_score && delete_score >= replace_score) {
+    return MutationKind::Delete;
+  }
+
+  if (insert_score >= delete_score && insert_score >= replace_score) {
+    return MutationKind::Insert;
+  }
+
+  return MutationKind::Replace;
 }
