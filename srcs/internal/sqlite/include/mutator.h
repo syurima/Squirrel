@@ -9,6 +9,24 @@
 
 using namespace std;
 
+enum class MutationKind {
+    Delete,
+    Insert,
+    Replace
+};
+
+struct MutationWeights {
+    int delete_weight = 20;
+    int insert_weight = 40;
+    int replace_weight = 40;
+};
+
+struct MutationStats {
+  unsigned long used = 0;
+  unsigned long success = 0;
+  unsigned long failed = 0;
+};
+
 class Mutator {
  public:
   Mutator() { srand(time(nullptr)); }
@@ -99,24 +117,6 @@ class Mutator {
   MutationWeights get_feedback_adaptive_weights(const MutationWeights &seed_weights);
   MutationKind choose_mutation_kind(const MutationWeights &weights);
   void update_mutation_stats(MutationKind kind, IR *result);
-};
-
-enum class MutationKind {
-    Delete,
-    Insert,
-    Replace
-};
-
-struct MutationWeights {
-    int delete_weight = 20;
-    int insert_weight = 40;
-    int replace_weight = 40;
-};
-
-struct MutationStats {
-  unsigned long used = 0;
-  unsigned long success = 0;
-  unsigned long failed = 0;
 };
 
 #endif
