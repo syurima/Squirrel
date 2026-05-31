@@ -12,6 +12,24 @@ using std::vector;
 using std::map;
 using std::set;
 
+enum class MutationKind {
+    Delete,
+    Insert,
+    Replace
+};
+
+struct MutationWeights {
+    int delete_weight = 20;
+    int insert_weight = 40;
+    int replace_weight = 40;
+};
+
+struct MutationStats {
+  unsigned long used = 0;
+  unsigned long success = 0;
+  unsigned long failed = 0;
+};
+
 class Mutator {
  public:
   Mutator() {}
@@ -92,6 +110,16 @@ class Mutator {
   string s_table_name;
 
   map<NODETYPE, int> type_counter_;
+
+  MutationWeights base_weights_;
+  MutationStats delete_stats_;
+  MutationStats insert_stats_;
+  MutationStats replace_stats_;
+  
+  MutationWeights get_seed_adaptive_weights(IR *input);
+  MutationWeights get_feedback_adaptive_weights(const MutationWeights &seed_weights);
+  MutationKind choose_mutation_kind(const MutationWeights &weights);
+  void update_mutation_stats(MutationKind kind, IR *result);
 };
 
 #endif

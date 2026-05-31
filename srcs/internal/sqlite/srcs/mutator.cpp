@@ -214,20 +214,43 @@ vector<IR *> Mutator::mutate(IR *input) {
   vector<IR *> res;
 
   if (!lucky_enough_to_be_mutated(input->mutated_times_)) {
-    return res;  // return a empty set if the IR is not mutated
+    return res;
   }
 
-  res.push_back(strategy_delete(input));
-  res.push_back(strategy_insert(input));
-  res.push_back(strategy_replace(input));
+  MutationWeights seed_weights = get_seed_adaptive_weights(input);
+  MutationWeights final_weights = get_feedback_adaptive_weights(seed_weights);
 
-  // may do some simple filter for res, like removing some duplicated cases
+  MutationKind kind = choose_mutation_kind(final_weights);
+
+  IR *mutated = NULL;
+
+  switch (kind) {
+    case MutationKind::Delete:
+      mutated = strategy_delete(input);
+      break;
+
+    case MutationKind::Insert:
+      mutated = strategy_insert(input);
+      break;
+
+    case MutationKind::Replace:
+      mutated = strategy_replace(input);
+      break;
+  }
+
+  update_mutation_stats(kind, mutated);
+
+  if (mutated != NULL) {
+    res.push_back(mutated);
+  }
 
   input->mutated_times_ += res.size();
+
   for (auto i : res) {
     if (i == NULL) continue;
     i->mutated_times_ = input->mutated_times_;
   }
+
   return res;
 }
 
@@ -1098,4 +1121,100 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
   new_len = fixed.size();
 
   return 1;
+}
+
+MutationWeights Mutator::get_seed_adaptive_weights(IR *input) {
+  MutationWeights weights = base_weights_;
+
+  unsigned int node_count = calc_node(input);
+
+  if (node_count < 10) {
+    weights.delete_weight = 10;
+    weights.insert_weight = 55;
+    weights.replace_weight = 35;
+  } else if (node_count > 60) {
+    weights.delete_weight = 40;
+    weights.insert_weight = 20;
+    weights.replace_weight = 40;
+  }
+
+  if (input->mutated_times_ > 1000) {
+    weights.delete_weight += 10;
+    weights.insert_weight = max(1, weights.insert_weight - 10);
+  }
+
+  return weights;
+}
+
+MutationKind Mutator::choose_mutation_kind(const MutationWeights &weights) {
+  int total = weights.delete_weight
+            + weights.insert_weight
+            + weights.replace_weight;
+
+  int r = get_rand_int(total);
+
+  if (r < weights.delete_weight) {
+    return MutationKind::Delete;
+  }
+
+  r -= weights.delete_weight;
+
+  if (r < weights.insert_weight) {
+    return MutationKind::Insert;
+  }
+
+  return MutationKind::Replace;
+}
+
+static int success_bonus(const MutationStats &stats) {
+  if (stats.used < 20) return 0;
+
+  double ratio = static_cast<double>(stats.success) / stats.used;
+
+  if (ratio > 0.70) return 15;
+  if (ratio > 0.50) return 8;
+  if (ratio < 0.20) return -10;
+
+  return 0;
+}
+
+MutationWeights Mutator::get_feedback_adaptive_weights(
+    const MutationWeights &seed_weights) {
+  MutationWeights weights = seed_weights;
+
+  weights.delete_weight += success_bonus(delete_stats_);
+  weights.insert_weight += success_bonus(insert_stats_);
+  weights.replace_weight += success_bonus(replace_stats_);
+
+  weights.delete_weight = max(1, weights.delete_weight);
+  weights.insert_weight = max(1, weights.insert_weight);
+  weights.replace_weight = max(1, weights.replace_weight);
+
+  return weights;
+}
+
+void Mutator::update_mutation_stats(MutationKind kind, IR *result) {
+  MutationStats *stats = NULL;
+
+  switch (kind) {
+    case MutationKind::Delete:
+      stats = &delete_stats_;
+      break;
+
+    case MutationKind::Insert:
+      stats = &insert_stats_;
+      break;
+
+    case MutationKind::Replace:
+      stats = &replace_stats_;
+      break;
+  }
+
+  stats->used++;
+
+  if (result != NULL) {
+    stats->success++;
+  } else {
+    stats->failed++;
+  }
 }
