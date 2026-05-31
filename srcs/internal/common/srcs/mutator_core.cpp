@@ -296,12 +296,6 @@ unsigned long Mutator::hash(IR *root) {
   return this->hash(tmp_str);
 }
 
-void Mutator::debug(IR *root) {
-  for (auto &i : data_library_[kDataFunctionName]) {
-    cout << i << endl;
-  }
-}
-
 Mutator::~Mutator() {}
 
 void Mutator::extract_struct(IR *root, bool use_unique_names) {

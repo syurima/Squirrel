@@ -98,7 +98,7 @@ class Mutator {
                                     const string &new_str);
   bool remove_one_from_datalibrary(DATATYPE datatype, const string &key);
   ~Mutator();
-  void debug(IR *root);
+  
   int try_fix(char *buf, int len, char *&new_buf, int &new_len);
 
   void add_ir_to_library_no_deepcopy(IR *);

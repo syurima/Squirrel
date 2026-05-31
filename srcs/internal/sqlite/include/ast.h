@@ -13,6 +13,9 @@ using std::string;
 using std::vector;
 using std::map;
 using std::set;
+using std::to_string;
+using std::cout;
+using std::endl;
 
 #define DECLARE_CLASS(v) class v;
 
@@ -27,7 +30,7 @@ static unsigned long g_id_counter;
 
 static inline void clear_id() { g_id_counter = 0; }
 
-static string gen_id_name() { return "v" + to_string(g_id_counter++); }
+static string gen_id_name() { return "v" + std::to_string(g_id_counter++); }
 
 enum CASEIDX { CASE0, CASE1, CASE2, CASE3, CASE4, CASE5, CASE6, CASE7, CASE8 };
 
