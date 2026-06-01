@@ -114,7 +114,7 @@ IR *Mutator::strategy_insert(IR *cur) {
       }
     }
   } else if (res->right_ != NULL && res->left_ == NULL) {
-    auto right_type = res->left_->type_;
+    auto right_type = res->right_->type_;
     for (int k = 0; k < 4; k++) {
       auto fetch_ir = get_ir_from_library(parent_type);
       if (fetch_ir->right_ != NULL && fetch_ir->right_->type_ == right_type &&

@@ -25,7 +25,6 @@ IR *Mutator::deep_copy_with_record(const IR *root, const IR *record) {
   IR *left = NULL, *right = NULL, *copy_res;
 
   if (root->left_) left = deep_copy_with_record(root->left_, record);
-
   if (root->right_) right = deep_copy_with_record(root->right_, record);
 
   if (root->op_ != NULL)

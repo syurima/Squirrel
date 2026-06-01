@@ -52,10 +52,6 @@ class Mutator {
   void add_ir_to_library(IR *);
 
   IR *get_ir_from_library(IRTYPE);
-  IR *generate_ir_by_type(IRTYPE); //?
-
-  string get_data_by_type(DATATYPE); //?
-  pair<string, string> get_data_2d_by_type(DATATYPE, DATATYPE); //?
 
   void reset_data_library(); //?
 
@@ -100,17 +96,17 @@ class Mutator {
   void add_ir_to_library_no_deepcopy(IR *);
 
   IR *record_ = NULL;
-  map<IRTYPE, vector<IR *>> ir_library_; //?
+  map<IRTYPE, vector<IR *>> ir_library_;
   map<IRTYPE, set<unsigned long>> ir_library_hash_;
 
   vector<string> string_library_;
   set<unsigned long> string_library_hash_;
   vector<unsigned long> value_library_;
+  vector<string> common_string_library_;
 
   map<DATATYPE, map<DATATYPE, RELATIONTYPE>> relationmap_; //?
 
-  vector<string> common_string_library_;
-  set<IRTYPE> not_mutatable_types_;
+  set<IRTYPE> not_mutatable_types_; //?
   set<IRTYPE> string_types_;
   set<IRTYPE> int_types_;
   set<IRTYPE> float_types_;
@@ -119,18 +115,18 @@ class Mutator {
   set<IRTYPE> split_stmt_types_;
   set<IRTYPE> split_substmt_types_;
 
-    map<DATATYPE, vector<string>> data_library_; //?
-    map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> data_library_2d_; //?
+  map<DATATYPE, vector<string>> data_library_; //?
+  map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> data_library_2d_; //?
 
-    map<DATATYPE, vector<string>> g_data_library_; //?
-    map<DATATYPE, set<unsigned long>> g_data_library_hash_; //?
-    map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> g_data_library_2d_; //?
-    map<DATATYPE, map<string, map<DATATYPE, vector<string>>>>
-      g_data_library_2d_hash_; //?
+  map<DATATYPE, vector<string>> g_data_library_; //?
+  map<DATATYPE, set<unsigned long>> g_data_library_hash_; //?
+  map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> g_data_library_2d_; //?
+  map<DATATYPE, map<string, map<DATATYPE, vector<string>>>>
+  g_data_library_2d_hash_; //?
 
-    map<int, map<DATATYPE, vector<IR *>>> scope_library_; //?
+  map<int, map<DATATYPE, vector<IR *>>> scope_library_; //?
 
-    set<unsigned long> global_hash_; //?
+  set<unsigned long> global_hash_; //?
 };
 
 #endif

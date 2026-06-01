@@ -899,45 +899,10 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
   return 1;
 }
 
-pair<string, string> Mutator::get_data_2d_by_type(DATATYPE type1,
-                                                  DATATYPE type2) {
-  pair<string, string> res("", "");
-  auto size = data_library_2d_[type1].size();
-
-  if (size == 0) return res;
-  auto rint = get_rand_int(size);
-
-  int counter = 0;
-  for (auto &i : data_library_2d_[type1]) {
-    if (counter++ == rint) {
-      return std::make_pair(i.first, pick_random_element(i.second[type2]));
-    }
-  }
-  return res;
-}
-
-IR *Mutator::generate_ir_by_type(IRTYPE type) {
-  auto ast_node = generate_ast_node_by_type(type);
-  ast_node->generate();
-  vector<IR *> tmp_vector;
-  ast_node->translate(tmp_vector);
-  assert(tmp_vector.size());
-
-  return tmp_vector[tmp_vector.size() - 1];
-}
-
 IR *Mutator::get_ir_from_library(IRTYPE type) {
   const int generate_prop = 1;
   const int threshold = 0;
   static IR *empty_ir = new IR(kStringLiteral, "");
-#ifdef USEGENERATE
-  if (ir_library_[type].empty() == true ||
-      (get_rand_int(400) == 0 && type != kUnknown)) {
-    auto ir = generate_ir_by_type(type);
-    add_ir_to_library_no_deepcopy(ir);
-    return ir;
-  }
-#endif
   if (ir_library_[type].empty()) return empty_ir;
   return pick_random_element(ir_library_[type]);
 }
