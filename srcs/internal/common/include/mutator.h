@@ -27,8 +27,6 @@ class Mutator {
   unsigned long hash(IR *);
   unsigned long hash(const string &);
 
-  IR *ir_random_generator(vector<IR *> v_ir_collector);
-
   vector<IR *> mutate_all(vector<IR *> &v_ir_collector);
   vector<IR *> mutate(IR *input);
   IR *strategy_delete(IR *cur);
@@ -50,6 +48,7 @@ class Mutator {
   void init_data_library_2d(const string &filename);
   void init_not_mutatable_type(const string &filename);
   void init_safe_generate_type(const string &filename);
+  void init_mutationmap();
   void add_ir_to_library(IR *);
 
   string get_a_string();
@@ -104,7 +103,6 @@ class Mutator {
   void add_ir_to_library_no_deepcopy(IR *);
 
   IR *record_ = NULL;
-  IR *mutated_root_ = NULL;
   map<IRTYPE, vector<IR *>> ir_library_;
   map<IRTYPE, set<unsigned long>> ir_library_hash_;
 

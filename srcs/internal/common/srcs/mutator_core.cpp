@@ -48,8 +48,6 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   if (v_ir_collector.empty()) return res;
   IR *root = v_ir_collector[v_ir_collector.size() - 1];
 
-  mutated_root_ = root;
-
   for (auto ir : v_ir_collector) {
     if (not_mutatable_types_.find(ir->type_) != not_mutatable_types_.end())
       continue;
@@ -234,23 +232,7 @@ void Mutator::init_safe_generate_type(const string &filename) {
   }
 }
 
-void Mutator::init(const string &f_testcase, const string &f_common_string,
-                   const string &file2d, const string &file1d,
-                   const string &f_gen_type) {
-  if (!f_testcase.empty()) init_ir_library(f_testcase);
-
-  // init value_library_
-  init_value_library();
-
-  // init common_string_library
-  if (!f_common_string.empty()) init_common_string(f_common_string);
-
-  // init data_library_2d
-  if (!file2d.empty()) init_data_library_2d(file2d);
-
-  if (!file1d.empty()) init_data_library(file1d);
-  if (!f_gen_type.empty()) init_safe_generate_type(f_gen_type);
-
+void Mutator::init_mutationmap() {
   float_types_.insert({kFloatLiteral});
   int_types_.insert(kIntLiteral);
   string_types_.insert(kStringLiteral);
@@ -276,6 +258,23 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
                                kDropViewStmt, kSelectStmt, kUpdateStmt,
                                kInsertStmt, kAlterStmt, kReindexStmt});
 #endif
+}
+
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &file2d, const string &file1d,
+                   const string &f_gen_type) {
+  if (!f_testcase.empty()) init_ir_library(f_testcase);
+
+  init_value_library();
+
+  if (!f_common_string.empty()) init_common_string(f_common_string);
+
+  if (!file2d.empty()) init_data_library_2d(file2d);
+
+  if (!file1d.empty()) init_data_library(file1d);
+  if (!f_gen_type.empty()) init_safe_generate_type(f_gen_type);
+
+  init_mutationmap();
 }
 
 string Mutator::get_a_string() {

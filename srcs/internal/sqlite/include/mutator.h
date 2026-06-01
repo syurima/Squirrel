@@ -50,6 +50,14 @@ class Mutator {
 
   void init(const string &f_testcase, const string &f_common_string = "", const string &pragma = "");
 
+  void init_ir_library(const string &f_testcase);
+  void init_value_library();
+  void init_common_string(const string &f_common_string);
+  void init_string_library();
+  void init_pragma(const string &pragma);
+  void init_relationmap();
+  void init_tables();
+
   void add_ir_to_library(IR *);
   void add_ir_to_library_no_deepcopy(IR *);
   IR *get_ir_from_library(IRTYPE);

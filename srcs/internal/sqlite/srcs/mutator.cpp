@@ -9,10 +9,10 @@
 #include <deque>
 #include <fstream>
 
+#include "../../common/include/mutator_helpers.h"
 #include "../include/ast.h"
 #include "../include/define.h"
 #include "../include/utils.h"
-#include "../../common/include/mutator_helpers.h"
 
 using namespace std;
 using mutator_common::pick_random_element;
@@ -37,19 +37,16 @@ vector<string> Mutator::v_table_names;
 IR *Mutator::deep_copy_with_record(const IR *root, const IR *record) {
   IR *left = NULL, *right = NULL, *copy_res;
 
-  if (root->left_)
-    left = deep_copy_with_record(
-        root->left_, record);  // do you have a second version for deep_copy
-                               // that accept only one argument?
-  if (root->right_)
-    right = deep_copy_with_record(root->right_,
-                                  record);  // no I forget to update here
+  if (root->left_) left = deep_copy_with_record(root->left_, record);
+
+  if (root->right_) right = deep_copy_with_record(root->right_, record);
 
   if (root->op_ != NULL)
-    copy_res = new IR(
-        root->type_,
-        OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_), left,
-        right, root->float_val_, root->str_val_, root->name_, root->mutated_times_);
+    copy_res =
+        new IR(root->type_,
+               OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_),
+               left, right, root->float_val_, root->str_val_, root->name_,
+               root->mutated_times_);
   else
     copy_res = new IR(root->type_, NULL, left, right, root->float_val_,
                       root->str_val_, root->name_, root->mutated_times_);
@@ -114,13 +111,19 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   return res;
 }
 
-void Mutator::init(const string &f_testcase, const string &f_common_string,
-                        const string &pragma) {
+void Mutator::init_ir_library(const string &f_testcase) {
   ifstream input_test(f_testcase);
-  string line;
+  if (!input_test.is_open()) {
+    cerr << "[!] failed to open ir_library file: " << f_testcase << endl;
+    return;
+  }
 
-  // init lib from multiple sql
+  cout << "[*] init ir_library: " << f_testcase << endl;
+
+  string line;
   while (getline(input_test, line)) {
+    if (line.empty()) continue;
+
     auto p = parser(line);
     if (p == NULL) continue;
 
@@ -128,31 +131,35 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
     auto res = p->translate(v_ir);
     p->deep_delete();
     p = NULL;
+
     string strip_sql = extract_struct(res);
     deep_delete(res);
-    p = parser(strip_sql);
 
+    p = parser(strip_sql);
     if (p == NULL) continue;
 
     res = p->translate(v_ir);
     p->deep_delete();
     p = NULL;
+
     add_ir_to_library(res);
     deep_delete(res);
-    ;
   }
+}
 
-  // init utils::m_tables
+void Mutator::init_tables() {
   vector<string> v_tmp = {"haha1", "haha2", "haha3"};
   v_table_names.insert(v_table_names.end(), v_tmp.begin(), v_tmp.end());
+
   m_tables["haha1"] = {"ducking_column0_1", "ducking_column1_1",
                        "ducking_column2_1"};
   m_tables["haha2"] = {"ducking_column0_2", "ducking_column1_2",
                        "ducking_column2_2"};
   m_tables["haha3"] = {"ducking_column0_3", "ducking_column1_3",
                        "ducking_column2_3"};
+}
 
-  // init value_library_
+void Mutator::init_value_library() {
   vector<unsigned long> value_lib_init = {0,
                                           (unsigned long)LONG_MAX,
                                           (unsigned long)ULONG_MAX,
@@ -178,23 +185,36 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 
   value_library_.insert(value_library_.begin(), value_lib_init.begin(),
                         value_lib_init.end());
+}
 
-  // init common_string_library_
+void Mutator::init_common_string(const string &f_common_string) {
   common_string_library_.push_back("DO_NOT_BE_EMPTY");
-  if (f_common_string != "") {
-    ifstream input_string(f_common_string);
-    string s;
 
-    while (getline(input_string, s)) {
-      common_string_library_.push_back(s);
-    }
+  if (f_common_string == "") return;
+
+  ifstream input_string(f_common_string);
+  if (!input_string.is_open()) {
+    cerr << "[!] failed to open common string file: " << f_common_string
+         << endl;
+    return;
   }
+
+  string s;
+  while (getline(input_string, s)) {
+    common_string_library_.push_back(s);
+  }
+}
+
+void Mutator::init_string_library() {
   string_library_.push_back("x");
   string_library_.push_back("v0");
   string_library_.push_back("v1");
+}
 
+void Mutator::init_pragma(const string &pragma) {
   ifstream input_pragma(pragma);
   assert(input_pragma.is_open());
+
   string s;
   cout << "[duck]start init pragma" << endl;
   while (getline(input_pragma, s)) {
@@ -202,6 +222,7 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 
     auto pos = s.find('=');
     if (pos == string::npos) continue;
+
     string k = s.substr(0, pos - 1);
     string v = s.substr(pos + 2);
     if (find(cmds_.begin(), cmds_.end(), k) == cmds_.end()) {
@@ -212,13 +233,33 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
   }
 
   assert(!cmds_.empty());
+}
+
+void Mutator::init_relationmap() {
+  assert(!cmds_.empty());
   relationmap[id_column_name] = id_top_table_name;
   relationmap[id_table_name] = id_top_table_name;
   relationmap[id_index_name] = id_top_table_name;
   relationmap[id_create_column_name] = id_create_table_name;
   relationmap[id_pragma_value] = id_pragma_name;
   cross_map[id_top_table_name] = id_create_table_name;
-  return;
+}
+
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &pragma) {
+  if (!f_testcase.empty()) init_ir_library(f_testcase);
+
+  init_tables();
+
+  init_value_library();
+
+  if (!f_common_string.empty()) init_common_string(f_common_string);
+
+  init_string_library();
+
+  init_pragma(pragma);
+
+  init_relationmap();
 }
 
 vector<IR *> Mutator::mutate(IR *input) {
@@ -687,7 +728,6 @@ void Mutator::add_ir_to_library(IR *ir) {
 }
 
 void Mutator::add_ir_to_library_no_deepcopy(IR *ir) {
-
   string p_str = ir->to_string();
   unsigned long p_hash = hash(p_str);
   IRTYPE p_type = ir->type_;
@@ -725,7 +765,6 @@ unsigned long Mutator::hash(const string &sql) {
 
 unsigned long Mutator::hash(IR *root) { return this->hash(root->to_string()); }
 
-
 Mutator::~Mutator() {
   cout << "HERE" << endl;
   set<IR *> visited;
@@ -752,7 +791,7 @@ Mutator::~Mutator() {
   }
 }
 
-void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph, 
+void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph,
                       set<IR *> &visited) {
   if (fixed_key->id_type_ == id_create_table_name) {
     string tablename = fixed_key->str_val_;
@@ -802,7 +841,7 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
       continue;
     }
     visited.insert(iter.first);
-        if (iter.second.empty()) {
+    if (iter.second.empty()) {
       if (iter.first->id_type_ == id_column_name) {
         string tablename = pick_random_or(v_table_names, gen_id_name());
         auto &columns = m_tables[tablename];
@@ -1116,7 +1155,6 @@ void Mutator::update_mutation_stats(MutationKind kind, IR *result) {
     stats->failed++;
   }
 }
-
 
 IR *Mutator::get_ir_from_library(IRTYPE type) {
   auto &bucket = ir_library_[type];
