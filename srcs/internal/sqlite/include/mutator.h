@@ -7,7 +7,10 @@
 
 #define LUCKY_NUMBER 500
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
 
 enum class MutationKind {
     Delete,
@@ -29,42 +32,40 @@ struct MutationStats {
 
 class Mutator {
  public:
-  Mutator() { srand(time(nullptr)); }
+  Mutator() {}
 
   IR *deep_copy_with_record(const IR *root, const IR *record);
   unsigned long hash(IR *);
-  unsigned long hash(string);
-
-  IR *ir_random_generator(vector<IR *> v_ir_collector);
+  unsigned long hash(const string &);
 
   vector<IR *> mutate_all(vector<IR *> &v_ir_collector);
-
   vector<IR *> mutate(IR *input);
   IR *strategy_delete(IR *cur);
   IR *strategy_insert(IR *cur);
   IR *strategy_replace(IR *cur);
+  bool lucky_enough_to_be_mutated(unsigned int mutated_times);
 
   bool replace(IR *root, IR *old_ir, IR *new_ir);
   IR *locate_parent(IR *root, IR *old_ir);
-  string validate(IR *root);
 
-  void minimize(vector<IR *> &);
-  bool lucky_enough_to_be_mutated(unsigned int mutated_times);
+  void init(const string &f_testcase, const string &f_common_string = "", const string &pragma = "");
 
-  void add_to_library(IR *);
-  void add_to_library_core(IR *);
+  void add_ir_to_library(IR *);
+  void add_ir_to_library_no_deepcopy(IR *);
+  IR *get_ir_from_library(IRTYPE);
   IR *get_from_library_3D(IR *);
-  IR *get_from_library_2D(IR *);
 
-  void init(string f_testcase, string f_common_string = "", string pragma = "");
   string fix(IR *root);
+  string validate(IR *root);
   string extract_struct(IR *root, bool use_unique_names = false);
   void add_new_table(IR *root, string &table_name);
   void reset_database();
 
+  void minimize(vector<IR *> &);
+  int try_fix(char *buf, int len, char *&new_buf, int &new_len);
+
   bool check_node_num(IR *root, unsigned int limit);
   vector<IR *> extract_statement(IR *root);
-  unsigned int calc_node(IR *root);
 
   map<IR *, set<IR *>> build_dependency_graph(IR *root,
                                               map<IDTYPE, IDTYPE> &relationmap,
@@ -75,38 +76,36 @@ class Mutator {
   void fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key, set<IR *> &visited);
   void fix_graph(map<IR *, set<IR *>> &graph, IR *root,
                  vector<IR *> &ordered_ir);
+  unsigned int calc_node(IR *root);
 
-  string get_a_string();
-  unsigned long get_a_val();
-  static vector<string> common_string_library;
-  static vector<unsigned long> value_library;
   static map<string, vector<string>> m_tables;
   static vector<string> v_table_names;
   ~Mutator();
 
-  void debug(IR *root);
   unsigned long get_library_size();
-  int try_fix(char *buf, int len, char *&new_buf, int &new_len);
 
  private:
   IR *record_ = NULL;
-  map<NODETYPE, map<NODETYPE, vector<IR *>>> ir_library_3D_;
-  map<NODETYPE, map<NODETYPE, set<unsigned long>>> ir_library_3D_hash_;
-  map<NODETYPE, set<unsigned long>> ir_library_2D_hash_;
-  map<NODETYPE, vector<IR *>> ir_library_2D_;
-  map<NODETYPE, vector<IR *>> left_lib;
-  map<NODETYPE, vector<IR *>> right_lib;
-  vector<string> string_library;
+  map<IRTYPE, map<IRTYPE, vector<IR *>>> ir_library_3D_;
+  map<IRTYPE, map<IRTYPE, set<unsigned long>>> ir_library_3D_hash_;
+  map<IRTYPE, vector<IR *>> ir_library_;
+  map<IRTYPE, set<unsigned long>> ir_library_hash_;
+  map<IRTYPE, vector<IR *>> left_lib;
+  map<IRTYPE, vector<IR *>> right_lib;
   map<IDTYPE, IDTYPE> relationmap;
   map<IDTYPE, IDTYPE> cross_map;
+
+  vector<string> string_library_;
   set<unsigned long> string_library_hash_;
+  vector<unsigned long> value_library_;
+  vector<string> common_string_library_;
 
   vector<string> cmds_;
   map<string, vector<string>> m_cmd_value_lib_;
 
   string s_table_name;
 
-  map<NODETYPE, int> type_counter_;
+  map<IRTYPE, int> type_counter_;
 
   MutationWeights base_weights_;
   MutationStats delete_stats_;

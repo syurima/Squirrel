@@ -37,7 +37,7 @@ bool SQLiteDB::save_interesting_query(const std::string &query) {
       auto root_ir = p_strip_sql->translate(ir_set);
       p_strip_sql->deep_delete();
       // mutator_->add_ir_to_library(root_ir);
-      mutator_->add_to_library(root_ir);
+      mutator_->add_ir_to_library(root_ir);
       deep_delete(root_ir);
     }
     return true;

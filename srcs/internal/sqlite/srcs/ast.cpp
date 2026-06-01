@@ -21,7 +21,7 @@ string IR::to_string() {
     return str_val_;
   if (type_ == kIntLiteral) return std::to_string(int_val_);
   if (type_ == kFloatLiteral || type_ == kconst_float)
-    return std::to_string(f_val_);
+    return std::to_string(float_val_);
   if (type_ == kconst_str) return str_val_;
   if (type_ == kconst_int) return std::to_string(int_val_);
 
@@ -1274,7 +1274,7 @@ IR *StringLiteral::translate(vector<IR *> &v_ir_collector) {
 IR *BoolLiteral::translate(vector<IR *> &v_ir_collector) {
   TRANSLATESTART
 
-  res = new IR(kBoolLiteral, b_val_);
+  res = new IR(kBoolLiteral, bool_val_);
 
   TRANSLATEEND
 }
@@ -1284,7 +1284,7 @@ IR *NumLiteral::translate(vector<IR *> &v_ir_collector) {
 
   SWITCHSTART
   CASESTART(0)
-  res = new IR(kFloatLiteral, f_val_);
+  res = new IR(kFloatLiteral, float_val_);
   CASEEND
   CASESTART(1)
   res = SAFETRANSLATE(int_literal_);
