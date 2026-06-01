@@ -18,19 +18,6 @@ using namespace std;
 using mutator_common::pick_random_element;
 using mutator_common::pick_random_or;
 
-namespace {
-void deep_delete_unique(IR *root, set<IR *> &visited) {
-  if (root == NULL || visited.find(root) != visited.end()) return;
-
-  visited.insert(root);
-  deep_delete_unique(root->left_, visited);
-  deep_delete_unique(root->right_, visited);
-
-  if (root->op_ != NULL) delete root->op_;
-  delete root;
-}
-}  // namespace
-
 map<string, vector<string>> Mutator::m_tables;
 vector<string> Mutator::v_table_names;
 
@@ -111,40 +98,29 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   return res;
 }
 
-void Mutator::init_ir_library(const string &f_testcase) {
-  ifstream input_test(f_testcase);
-  if (!input_test.is_open()) {
-    cerr << "[!] failed to open ir_library file: " << f_testcase << endl;
+void Mutator::init_ir_library(const string &filename) {
+  ifstream input_file(filename);
+  if (!input_file.is_open()) {
+    cerr << "[!] failed to open ir_library file: " << filename << endl;
     return;
   }
-
-  cout << "[*] init ir_library: " << f_testcase << endl;
-
   string line;
-  while (getline(input_test, line)) {
-    if (line.empty()) continue;
 
+  cout << "[*] init ir_library: " << filename << endl;
+  while (getline(input_file, line)) {
+    if (line.empty()) continue;
     auto p = parser(line);
-    if (p == NULL) continue;
+    if (p == nullptr) continue;
 
     vector<IR *> v_ir;
     auto res = p->translate(v_ir);
     p->deep_delete();
-    p = NULL;
-
-    string strip_sql = extract_struct(res);
-    deep_delete(res);
-
-    p = parser(strip_sql);
-    if (p == NULL) continue;
-
-    res = p->translate(v_ir);
-    p->deep_delete();
-    p = NULL;
+    p = nullptr;
 
     add_ir_to_library(res);
     deep_delete(res);
   }
+  return;
 }
 
 void Mutator::init_tables() {
@@ -765,31 +741,7 @@ unsigned long Mutator::hash(const string &sql) {
 
 unsigned long Mutator::hash(IR *root) { return this->hash(root->to_string()); }
 
-Mutator::~Mutator() {
-  cout << "HERE" << endl;
-  set<IR *> visited;
-
-  // delete base ir_library_ (primary 2D storage now owned here)
-  for (auto &i : ir_library_) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-
-  // delete left_lib
-  for (auto &i : left_lib) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-
-  // delete right_lib
-  for (auto &i : right_lib) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-}
+Mutator::~Mutator() {}
 
 void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph,
                       set<IR *> &visited) {

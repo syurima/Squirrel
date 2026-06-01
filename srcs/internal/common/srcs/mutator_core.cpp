@@ -277,17 +277,6 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
   init_mutationmap();
 }
 
-string Mutator::get_a_string() {
-  return mutator_common::pick_random_string(string_library_,
-                                            common_string_library_);
-}
-
-unsigned long Mutator::get_a_val() {
-  assert(value_library_.size());
-
-  return pick_random_element(value_library_);
-}
-
 unsigned long Mutator::hash(const string &sql) { return ducking_hash(sql.c_str(), sql.size()); }
 
 unsigned long Mutator::hash(IR *root) {
@@ -328,26 +317,6 @@ void Mutator::reset_data_library() {
   data_library_2d_.clear();
 }
 
-string Mutator::parse_data(const string &input) {
-  string res;
-  if (!input.compare("_int_")) {
-    res = to_string(get_a_val());
-  } else if (!input.compare("_empty_")) {
-    res = "";
-  } else if (!input.compare("_boolean_")) {
-    if (get_rand_int(2) == 0)
-      res = "false";
-    else
-      res = "true";
-  } else if (!input.compare("_string_")) {
-    res = get_a_string();
-  } else {
-    res = input;
-  }
-
-  return res;
-}
-
 bool Mutator::validate(IR *&root) {
   reset_data_library();
   string sql = root->to_string();
@@ -372,11 +341,8 @@ bool Mutator::validate(IR *&root) {
 }
 
 unsigned int Mutator::calc_node(IR *root) {
-  unsigned int res = 0;
-  if (root->left_) res += calc_node(root->left_);
-  if (root->right_) res += calc_node(root->right_);
-
-  return res + 1;
+  if (root == NULL) return 0;
+  return 1 + calc_node(root->left_) + calc_node(root->right_);
 }
 
 bool Mutator::fix(IR *root) {
