@@ -674,42 +674,6 @@ bool Mutator::lucky_enough_to_be_mutated(unsigned int mutated_times) {
   }
   return false;
 }
-IR *Mutator::get_from_library_3D(IR *ir) {
-  IRTYPE left_type = kEmpty, right_type = kEmpty;
-  if (ir->left_) {
-    left_type = ir->left_->type_;
-  }
-  if (ir->right_) {
-    right_type = ir->right_->type_;
-  }
-  auto &i = ir_library_3D_[left_type][right_type];
-  if (i.size() == 0) return new IR(kStringLiteral, "");
-  return i[get_rand_int(i.size())];
-}
-
-unsigned long Mutator::get_library_size() {
-  unsigned long res = 0;
-
-  for (auto &i : ir_library_) {
-    res += i.second.size();
-  }
-
-  for (auto &i : ir_library_3D_) {
-    for (auto &j : i.second) {
-      res += j.second.size();
-    }
-  }
-
-  for (auto &i : left_lib) {
-    res += i.second.size();
-  }
-
-  for (auto &i : right_lib) {
-    res += i.second.size();
-  }
-
-  return res;
-}
 
 void Mutator::add_ir_to_library(IR *ir) {
   IRTYPE p_type = ir->type_;
@@ -752,15 +716,6 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *ir) {
     left_lib[left_type].push_back(ir->right_);
   }
 
-  // update library_3D
-  set<unsigned long> &hash_map = ir_library_3D_hash_[left_type][right_type];
-  if (hash_map.find(p_hash) != hash_map.end()) {
-    return;
-  }
-
-  ir_library_3D_hash_[left_type][right_type].insert(p_hash);
-  ir_library_3D_[left_type][right_type].push_back(ir);
-
   return;
 }
 
@@ -774,15 +729,6 @@ unsigned long Mutator::hash(IR *root) { return this->hash(root->to_string()); }
 Mutator::~Mutator() {
   cout << "HERE" << endl;
   set<IR *> visited;
-
-  // delete each stored IR exactly once, even though buckets share pointers
-  for (auto &i : ir_library_3D_) {
-    for (auto &j : i.second) {
-      for (auto &ir : j.second) {
-        deep_delete_unique(ir, visited);
-      }
-    }
-  }
 
   // delete base ir_library_ (primary 2D storage now owned here)
   for (auto &i : ir_library_) {
@@ -806,7 +752,7 @@ Mutator::~Mutator() {
   }
 }
 
-void Mutator::fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key,
+void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph, 
                       set<IR *> &visited) {
   if (fixed_key->id_type_ == id_create_table_name) {
     string tablename = fixed_key->str_val_;
@@ -820,7 +766,7 @@ void Mutator::fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key,
       } else if (val->id_type_ == id_top_table_name) {
         val->str_val_ = tablename;
         visited.insert(val);
-        fix_one(graph, val, visited);
+        fix_one(val, graph, visited);
       }
     }
   } else if (fixed_key->id_type_ == id_top_table_name) {
@@ -873,7 +819,7 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
       } else {
         iter.first->str_val_ = pick_random_or(v_table_names, gen_id_name());
       }
-      fix_one(graph, iter.first, visited);
+      fix_one(iter.first, graph, visited);
     }
   }
 }

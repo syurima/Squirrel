@@ -53,7 +53,6 @@ class Mutator {
   void add_ir_to_library(IR *);
   void add_ir_to_library_no_deepcopy(IR *);
   IR *get_ir_from_library(IRTYPE);
-  IR *get_from_library_3D(IR *);
 
   string fix(IR *root);
   string validate(IR *root);
@@ -73,7 +72,7 @@ class Mutator {
                                               vector<IR *> &ordered_ir);
   vector<IR *> cut_subquery(IR *program, map<IR **, IR *> &m_save);
   bool fix_back(map<IR **, IR *> &m_save);
-  void fix_one(map<IR *, set<IR *>> &graph, IR *fixed_key, set<IR *> &visited);
+  void fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph, set<IR *> &visited);
   void fix_graph(map<IR *, set<IR *>> &graph, IR *root,
                  vector<IR *> &ordered_ir);
   unsigned int calc_node(IR *root);
@@ -82,12 +81,8 @@ class Mutator {
   static vector<string> v_table_names;
   ~Mutator();
 
-  unsigned long get_library_size();
-
  private:
   IR *record_ = NULL;
-  map<IRTYPE, map<IRTYPE, vector<IR *>>> ir_library_3D_;
-  map<IRTYPE, map<IRTYPE, set<unsigned long>>> ir_library_3D_hash_;
   map<IRTYPE, vector<IR *>> ir_library_;
   map<IRTYPE, set<unsigned long>> ir_library_hash_;
   map<IRTYPE, vector<IR *>> left_lib;
