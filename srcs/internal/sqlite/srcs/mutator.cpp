@@ -66,7 +66,7 @@ bool Mutator::check_node_num(IR *root, unsigned int limit) {
 
 vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   vector<IR *> res;
-  set<unsigned long> res_hash;
+  if (v_ir_collector.empty()) return res;
   IR *root = v_ir_collector[v_ir_collector.size() - 1];
 
   for (auto ir : v_ir_collector) {
@@ -80,16 +80,17 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
       if (!check_node_num(new_ir_tree, 100)) {
         deep_delete(new_ir_tree);
         continue;
-      }
+      }  // TODO: remove or add for common
 
-      string tmp = extract_struct(new_ir_tree);
+      extract_struct(new_ir_tree);
+      string tmp = new_ir_tree->to_string();
       unsigned tmp_hash = hash(tmp);
-      if (res_hash.find(tmp_hash) != res_hash.end()) {
+      if (global_hash_.find(tmp_hash) != global_hash_.end()) {
         deep_delete(new_ir_tree);
         continue;
       }
 
-      res_hash.insert(tmp_hash);
+      global_hash_.insert(tmp_hash);
       res.push_back(new_ir_tree);
     }
   }
@@ -503,7 +504,7 @@ map<IR *, set<IR *>> Mutator::build_dependency_graph(
     toptable_map(graph, ir_to_fix, v_top_table);
     for (auto ir : ir_to_fix) {
       auto idtype = ir->id_type_;
-      graph[ir].empty();
+      graph[ir].empty(); //TODO: fix warning?
       if (relationmap.find(idtype) == relationmap.end()) {
         continue;
       }
@@ -579,46 +580,56 @@ IR *Mutator::strategy_delete(IR *cur) {
 IR *Mutator::strategy_insert(IR *cur) {
   assert(cur);
 
+  // Special Case: Append to Statement List
+  if (cur->type_ == kStatementList) {
+    auto &lib = left_lib[kStatementList];
+    if (!lib.empty()) {
+      auto new_right = deep_copy(lib[get_rand_int(lib.size())]);
+      return new IR(kStatementList, OPMID(";"), deep_copy(cur), new_right);
+    }
+  }
+
   auto res = deep_copy(cur);
 
-  if (cur->type_ == kStatementList) {
-    int size = left_lib[kStatementList].size();
-    auto new_right = deep_copy(left_lib[kStatementList][get_rand_int(size)]);
-    auto new_res = new IR(kStatementList, OPMID(";"), res, new_right);
-    return new_res;
-  }
-
-  if (res->right_ == NULL && res->left_ != NULL) {
-    auto left_type = res->left_->type_;
-    auto left_lib_size = left_lib[left_type].size();
-    if (left_lib_size != 0) {
-      auto new_right =
-          deep_copy(left_lib[left_type][get_rand_int(left_lib_size)]);
-      res->right_ = new_right;
+  // Case 1: Missing Right Child
+  if (res->left_ && !res->right_) {
+    auto &lib = left_lib[res->left_->type_];
+    if (!lib.empty()) {
+      res->right_ = deep_copy(lib[get_rand_int(lib.size())]);
       return res;
     }
-  } else if (res->right_ != NULL && res->left_ == NULL) {
-    auto right_type = res->right_->type_;
-    auto right_lib_size = right_lib[right_type].size();
-    if (right_lib_size != 0) {
-      auto new_left =
-          deep_copy(right_lib[right_type][get_rand_int(right_lib_size)]);
-      res->left_ = new_left;
+  }
+  // Case 2: Missing Left Child
+  else if (!res->left_ && res->right_) {
+    auto &lib = right_lib[res->right_->type_];
+    if (!lib.empty()) {
+      res->left_ = deep_copy(lib[get_rand_int(lib.size())]);
       return res;
     }
   }
 
-  int lib_size = ir_library_[res->type_].size();
-  if (lib_size == 0) {
+  // Case 3: Both Children Missing (Get children from random node of parenttype)
+  else if (!res->left_ && !res->right_) {
+    auto &lib = ir_library_[res->type_];
+    if (!lib.empty()) {
+      auto *blueprint = lib[get_rand_int(lib.size())];
+      if (blueprint->left_ && blueprint->right_) {
+        res->left_ = deep_copy(blueprint->left_);
+        res->right_ = deep_copy(blueprint->right_);
+        return res;
+      }
+    }
+  }
+
+  // Fallback: Replace the entire node with a variant from the main library
+  auto &main_lib = ir_library_[res->type_];
+  if (main_lib.empty()) {
     deep_delete(res);
-    return NULL;
+    return nullptr;
   }
 
-  auto save = res;
-  res = deep_copy(ir_library_[res->type_][get_rand_int(lib_size)]);
-  deep_delete(save);
-
-  return res;
+  deep_delete(res);
+  return deep_copy(main_lib[get_rand_int(main_lib.size())]);
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
@@ -691,44 +702,40 @@ bool Mutator::lucky_enough_to_be_mutated(unsigned int mutated_times) {
   return false;
 }
 
-void Mutator::add_ir_to_library(IR *ir) {
-  IRTYPE p_type = ir->type_;
-  unsigned long p_hash = hash(ir->to_string());
-  if (ir_library_hash_[p_type].find(p_hash) !=
-      ir_library_hash_[p_type].end()) {
+void Mutator::add_ir_to_library(IR *cur) {
+  extract_struct(cur);
+  IRTYPE p_type = cur->type_;
+  unsigned long p_hash = hash(cur->to_string());
+  if (ir_library_hash_[p_type].find(p_hash) != ir_library_hash_[p_type].end()) {
     return;
   }
-  IR *ir_copy = deep_copy(ir);
+  IR *ir_copy = deep_copy(cur);
   add_ir_to_library_no_deepcopy(ir_copy);
 }
 
-void Mutator::add_ir_to_library_no_deepcopy(IR *ir) {
-  string p_str = ir->to_string();
-  unsigned long p_hash = hash(p_str);
-  IRTYPE p_type = ir->type_;
-  IRTYPE left_type = kEmpty, right_type = kEmpty;
+void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
+  auto left = cur->left_;
+  auto right = cur->right_;
 
-  if (ir_library_hash_[p_type].find(p_hash) !=
-      ir_library_hash_[p_type].end()) {
+  auto type = cur->type_;
+  auto h = hash(cur);
+  if (find(ir_library_hash_[type].begin(), ir_library_hash_[type].end(), h) !=
+      ir_library_hash_[type].end())
     return;
-  }
 
-  ir_library_hash_[p_type].insert(p_hash);
-  ir_library_[p_type].push_back(ir);
+  ir_library_hash_[type].insert(h);
+  ir_library_[type].push_back(cur);
 
-  if (ir->left_) {
-    left_type = ir->left_->type_;
-    add_ir_to_library_no_deepcopy(ir->left_);
-  }
-  if (ir->right_) {
-    right_type = ir->right_->type_;
-    add_ir_to_library_no_deepcopy(ir->right_);
-  }
+  if (left) add_ir_to_library_no_deepcopy(left);
+  if (right) add_ir_to_library_no_deepcopy(right);
 
-  // update right_lib, left_lib (sqlite-specific indexes)
-  if (ir->right_ && ir->left_) {
-    right_lib[right_type].push_back(ir->left_);
-    left_lib[left_type].push_back(ir->right_);
+  // update right_lib, left_lib
+  auto left_type = left ? left->type_ : kUnknown;
+  auto right_type = right ? right->type_ : kUnknown;
+
+  if (right && left) {
+    right_lib[right_type].push_back(left);
+    left_lib[left_type].push_back(right);
   }
 
   return;
@@ -896,59 +903,66 @@ unsigned int Mutator::calc_node(IR *root) {
   return 1 + calc_node(root->left_) + calc_node(root->right_);
 }
 
-string Mutator::extract_struct(IR *root, bool use_unique_names) {
+void Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
-  string res;
-  auto *right_ = root->right_, *left_ = root->left_;
-  auto *op_ = root->op_;
-  auto type_ = root->type_;
-  auto str_val_ = root->str_val_;
 
-  if (type_ == kColumnName && str_val_ == "*") return str_val_;
+  if (root == nullptr) return;
+
+  if (root->left_) extract_struct(root->left_, use_unique_names);
+  if (root->right_) extract_struct(root->right_, use_unique_names);
+
+  auto type_ = root->type_;
+
+  if (type_ == kColumnName && root->str_val_ == "*") return;
+
   if (type_ == kOptOrderType || type_ == kNullLiteral || type_ == kColumnType ||
       type_ == kSetType || type_ == kOptJoinType || type_ == kOptDistinct)
-    return str_val_;
+    return;
+
   if (root->id_type_ != id_whatever && root->id_type_ != id_module_name) {
-    if (use_unique_names) return "x" + to_string(counter++);
-    return "x";
+    root->str_val_ = use_unique_names ? "x" + to_string(counter++) : "x";
+    return;
   }
+
   if (type_ == kPrepareTargetQuery || type_ == kStringLiteral) {
-    string str_val = str_val_;
+    string str_val = root->str_val_;
+
     str_val.erase(std::remove(str_val.begin(), str_val.end(), '\''),
                   str_val.end());
     str_val.erase(std::remove(str_val.begin(), str_val.end(), '"'),
                   str_val.end());
+
     string magic_string = magic_string_generator(str_val);
     unsigned long h = hash(magic_string);
+
     if (string_library_hash_.find(h) == string_library_hash_.end()) {
       string_library_.push_back(magic_string);
       string_library_hash_.insert(h);
     }
-    return "'y'";
+
+    root->str_val_ = "'y'";
+    return;
   }
+
   if (type_ == kIntLiteral) {
-    value_library_.push_back(root->int_val_);
-    return "10";
+    root->int_val_ = 10;
+    return;
   }
+
   if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_library_.push_back((unsigned long)root->float_val_);
-    return "0.1";
+    root->float_val_ = 0.1;
+    return;
   }
+
   if (type_ == kconst_int) {
-    value_library_.push_back(root->int_val_);
-    return "11";
+    root->int_val_ = 11;
+    return;
   }
-  if (type_ == kFilePath) return "'file_name'";
 
-  if (!str_val_.empty()) return str_val_;
-  if (op_ != NULL) res += op_->prefix_ + " ";
-  if (left_ != NULL) res += extract_struct(left_, use_unique_names) + " ";
-  if (op_ != NULL) res += op_->middle_ + " ";
-  if (right_ != NULL) res += extract_struct(right_, use_unique_names) + " ";
-  if (op_ != NULL) res += op_->suffix_;
-
-  trim_string(res);
-  return res;
+  if (type_ == kFilePath) {
+    root->str_val_ = "'file_name'";
+    return;
+  }
 }
 
 void Mutator::add_new_table(IR *root, string &table_name) {
@@ -1035,9 +1049,8 @@ MutationWeights Mutator::get_seed_adaptive_weights(IR *input) {
 }
 
 MutationKind Mutator::choose_mutation_kind(const MutationWeights &weights) {
-  int total = weights.delete_weight
-            + weights.insert_weight
-            + weights.replace_weight;
+  int total =
+      weights.delete_weight + weights.insert_weight + weights.replace_weight;
 
   int r = get_rand_int(total);
 

@@ -76,15 +76,20 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
 
 void Mutator::add_ir_to_library(IR *cur) {
   extract_struct(cur);
-  cur = deep_copy(cur);
-  add_ir_to_library_no_deepcopy(cur);
-  return;
+  IRTYPE p_type = cur->type_;
+  unsigned long p_hash = hash(cur->to_string());
+  if (ir_library_hash_[p_type].find(p_hash) !=
+      ir_library_hash_[p_type].end()) {
+    return;
+  }
+  IR *ir_copy = deep_copy(cur);
+  add_ir_to_library_no_deepcopy(ir_copy);
 }
 
 void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
-  if (cur->left_) add_ir_to_library_no_deepcopy(cur->left_);
-  if (cur->right_) add_ir_to_library_no_deepcopy(cur->right_);
-
+  auto left = cur->left_;
+  auto right = cur->right_;
+  
   auto type = cur->type_;
   auto h = hash(cur);
   if (find(ir_library_hash_[type].begin(), ir_library_hash_[type].end(), h) !=
@@ -93,6 +98,18 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
 
   ir_library_hash_[type].insert(h);
   ir_library_[type].push_back(cur);
+
+  if (left) add_ir_to_library_no_deepcopy(left);
+  if (right) add_ir_to_library_no_deepcopy(right);
+
+  // update right_lib, left_lib
+  auto left_type = left ? left->type_ : kUnknown;
+  auto right_type = right ? right->type_ : kUnknown;
+
+  if (right && left) {
+    right_lib[right_type].push_back(left);
+    left_lib[left_type].push_back(right);
+  }
 
   return;
 }
@@ -296,7 +313,7 @@ void Mutator::extract_struct(IR *root, bool use_unique_names) {
     extract_struct(root->right_, use_unique_names);
   }
 
-  if (root->left_ || root->right_) return;
+  // if (root->left_ || root->right_) return;
 
   if (root->data_type_ != kDataWhatever) {
     root->str_val_ = use_unique_names ? "x" + to_string(counter++) : "x";

@@ -101,6 +101,10 @@ class Mutator {
 
   vector<string> string_library_;
   set<unsigned long> string_library_hash_;
+
+  map<IRTYPE, vector<IR *>> left_lib;
+  map<IRTYPE, vector<IR *>> right_lib;
+
   vector<unsigned long> value_library_;
   vector<string> common_string_library_;
 
@@ -126,7 +130,7 @@ class Mutator {
 
   map<int, map<DATATYPE, vector<IR *>>> scope_library_; //?
 
-  set<unsigned long> global_hash_; //?
+  set<unsigned long> global_hash_;
 };
 
 #endif

@@ -103,34 +103,25 @@ IR *Mutator::strategy_insert(IR *cur) {
   auto res = deep_copy(cur);
   auto parent_type = cur->type_;
 
-  if (res->right_ == NULL && res->left_ != NULL) {
-    auto left_type = res->left_->type_;
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->left_ != NULL && fetch_ir->left_->type_ == left_type &&
-          fetch_ir->right_ != NULL) {
-        res->right_ = deep_copy(fetch_ir->right_);
-        return res;
-      }
-    }
-  } else if (res->right_ != NULL && res->left_ == NULL) {
-    auto right_type = res->right_->type_;
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->right_ != NULL && fetch_ir->right_->type_ == right_type &&
-          fetch_ir->left_ != NULL) {
-        res->left_ = deep_copy(fetch_ir->left_);
-        return res;
-      }
-    }
-  } else if (res->left_ == NULL && res->right_ == NULL) {
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->right_ != NULL && fetch_ir->left_ != NULL) {
-        res->left_ = deep_copy(fetch_ir->left_);
-        res->right_ = deep_copy(fetch_ir->right_);
-        return res;
-      }
+  // A helper to check if a library node matches existing children's types
+  auto matches_existing = [](IR* existing, IR* library_node) {
+    if (!existing) return true; // If we don't have a child, anything matches
+    return library_node && library_node->type_ == existing->type_;
+  };
+
+  for (int k = 0; k < 4; k++) {
+    auto fetch_ir = get_ir_from_library(parent_type);
+    if (!fetch_ir) continue;
+
+    // Check if the library node has the full structure we want to fill into
+    if (fetch_ir->left_ && fetch_ir->right_ &&
+        matches_existing(res->left_, fetch_ir->left_) &&
+        matches_existing(res->right_, fetch_ir->right_)) {
+        
+      // Fill in whichever pieces are currently missing
+      if (!res->left_)  res->left_  = deep_copy(fetch_ir->left_);
+      if (!res->right_) res->right_ = deep_copy(fetch_ir->right_);
+      return res;
     }
   }
 

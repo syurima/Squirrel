@@ -65,7 +65,7 @@ class Mutator {
 
   string fix(IR *root); //?
   string validate(IR *root); //?
-  string extract_struct(IR *root, bool use_unique_names = false);
+  void extract_struct(IR *root, bool use_unique_names = false);
   void add_new_table(IR *root, string &table_name); //?
   void reset_database(); //?
 
@@ -95,8 +95,9 @@ class Mutator {
   map<IRTYPE, vector<IR *>> ir_library_;
   map<IRTYPE, set<unsigned long>> ir_library_hash_;
 
-  map<IRTYPE, vector<IR *>> left_lib; //?
-  map<IRTYPE, vector<IR *>> right_lib; //?
+  map<IRTYPE, vector<IR *>> left_lib;
+  map<IRTYPE, vector<IR *>> right_lib;
+
   map<IDTYPE, IDTYPE> relationmap; //?
   map<IDTYPE, IDTYPE> cross_map; //?
 
@@ -117,6 +118,8 @@ class Mutator {
   MutationWeights get_feedback_adaptive_weights(const MutationWeights &seed_weights); //!
   MutationKind choose_mutation_kind(const MutationWeights &weights); //!
   void update_mutation_stats(MutationKind kind, IR *result); //!
+
+  set<unsigned long> global_hash_;
 };
 
 #endif
