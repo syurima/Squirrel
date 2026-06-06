@@ -8,11 +8,11 @@
 
 // Include dialect-specific and common headers so this file can be compiled
 // as a standalone translation unit when added to `${dbms}_impl`.
-#include "mutator.h"
 #include "ast.h"
 #include "define.h"
-#include "utils.h"
+#include "mutator.h"
 #include "mutator_helpers.h"
+#include "utils.h"
 
 using namespace std;
 using mutator_common::pick_random_element;
@@ -78,8 +78,7 @@ void Mutator::add_ir_to_library(IR *cur) {
   extract_struct(cur);
   IRTYPE p_type = cur->type_;
   unsigned long p_hash = hash(cur->to_string());
-  if (ir_library_hash_[p_type].find(p_hash) !=
-      ir_library_hash_[p_type].end()) {
+  if (ir_library_hash_[p_type].find(p_hash) != ir_library_hash_[p_type].end()) {
     return;
   }
   IR *ir_copy = deep_copy(cur);
@@ -89,7 +88,7 @@ void Mutator::add_ir_to_library(IR *cur) {
 void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
   auto left = cur->left_;
   auto right = cur->right_;
-  
+
   auto type = cur->type_;
   auto h = hash(cur);
   if (find(ir_library_hash_[type].begin(), ir_library_hash_[type].end(), h) !=
@@ -294,7 +293,9 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
   init_mutationmap();
 }
 
-unsigned long Mutator::hash(const string &sql) { return ducking_hash(sql.c_str(), sql.size()); }
+unsigned long Mutator::hash(const string &sql) {
+  return ducking_hash(sql.c_str(), sql.size());
+}
 
 unsigned long Mutator::hash(IR *root) {
   auto tmp_str = move(root->to_string());
@@ -306,13 +307,9 @@ Mutator::~Mutator() {}
 void Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
   auto type = root->type_;
-  if (root->left_) {
-    extract_struct(root->left_, use_unique_names);
-  }
-  if (root->right_) {
-    extract_struct(root->right_, use_unique_names);
-  }
 
+  if (root->left_) extract_struct(root->left_, use_unique_names);
+  if (root->right_) extract_struct(root->right_, use_unique_names);
   // if (root->left_ || root->right_) return;
 
   if (root->data_type_ != kDataWhatever) {
@@ -329,13 +326,10 @@ void Mutator::extract_struct(IR *root, bool use_unique_names) {
   }
 }
 
-void Mutator::reset_data_library() {
+bool Mutator::validate(IR *&root) {
   data_library_.clear();
   data_library_2d_.clear();
-}
 
-bool Mutator::validate(IR *&root) {
-  reset_data_library();
   string sql = root->to_string();
   auto ast = parser(sql);
   if (ast == NULL) return false;
@@ -373,7 +367,7 @@ bool Mutator::fix(IR *root) {
     return false;
   }
 
-  clear_scope_library(true);
+  scope_library_.clear();
   for (auto &stmt : stmts) {
     map<IR **, IR *> m_substmt_save;
     auto substmts = split_to_stmt(stmt, m_substmt_save, split_substmt_types_);
@@ -385,7 +379,7 @@ bool Mutator::fix(IR *root) {
       return false;
     }
     for (auto &substmt : substmts) {
-      clear_scope_library(false);
+      scope_library_.clear();
       int tmp_node_num = calc_node(substmt);
       if ((stmt_num == 1 && tmp_node_num > 150) || tmp_node_num > 120) {
         connect_back(m_save);
@@ -454,16 +448,6 @@ bool Mutator::fix_one(IR *stmt_root,
   analyze_scope(stmt_root);
   auto graph = build_graph(stmt_root, scope_library);
 
-#ifdef GRAPHLOG
-  for (auto &iter : graph) {
-    cout << "Node: " << iter.first->to_string() << " connected with:" << endl;
-    for (auto &k : iter.second) {
-      cout << k->to_string() << endl;
-    }
-    cout << "--------" << endl;
-  }
-  cout << "OUTPUT END" << endl;
-#endif
   return fill_stmt_graph(graph);
 }
 
@@ -521,16 +505,10 @@ map<IR *, vector<IR *>> Mutator::build_graph(
           if (pick_node && pick_node->scope_ != cur_scope) {
             pick_node = NULL;
           }
-        } else {
-          if (!node->str_val_.empty()) {
-          }
-
-          if (!isDefine(cur_data_flag) ||
-              relationmap_[cur_data_type][target.first] != kRelationElement) {
-              if (!scope_library[cur_scope][target.first].empty())
-              pick_node = pick_random_element(
-                scope_library[cur_scope][target.first]);
-          }
+        } else if (!isDefine(cur_data_flag) ||
+                   relationmap_[cur_data_type][target.first] != kRelationElement) {
+          if (!scope_library[cur_scope][target.first].empty())
+            pick_node = pick_random_element(scope_library[cur_scope][target.first]);
         }
         if (pick_node != NULL) res[pick_node].push_back(node);
       }
@@ -552,7 +530,6 @@ bool Mutator::fill_stmt_graph(map<IR *, vector<IR *>> &graph) {
     }
   }
   for (auto &iter : graph) {
-    auto type1 = iter.first->data_type_;
     auto beg = iter.first;
     if (zero_indegrees[beg] == false || visited.find(beg) != visited.end()) {
       continue;
@@ -580,14 +557,16 @@ bool Mutator::fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir) {
   return res;
 }
 
-using mutator_common::replace_in_vector;
 using mutator_common::remove_in_vector;
+using mutator_common::replace_in_vector;
 
-bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, const string &key) {
+bool Mutator::remove_one_from_datalibrary(DATATYPE datatype,
+                                          const string &key) {
   return remove_in_vector(key, data_library_[datatype]);
 }
 
-bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
+bool Mutator::replace_one_from_datalibrary(DATATYPE datatype,
+                                           const string &old_str,
                                            const string &new_str) {
   return replace_in_vector(old_str, new_str, data_library_[datatype]);
 }
@@ -778,8 +757,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
               break;
             }
             child->str_val_ =
-                pick_random_element(
-                  data_library_2d_[p_type][p_str][c_type]);
+                pick_random_element(data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_,
                              data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_, data_library_[c_type]);
@@ -788,8 +766,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                      data_library_2d_[p_type][p_str].end()) {
             if (data_library_2d_[p_type][p_str][c_type].empty() == false) {
               child->str_val_ =
-                      pick_random_element(
-                        data_library_2d_[p_type][p_str][c_type]);
+                  pick_random_element(data_library_2d_[p_type][p_str][c_type]);
             }
           } else {
             if (data_library_[c_type].empty()) {
@@ -799,8 +776,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                 child->str_val_ = "v1";
               }
             } else
-                child->str_val_ =
-                  pick_random_element(data_library_[c_type]);
+              child->str_val_ = pick_random_element(data_library_[c_type]);
           }
         } else {
         }
@@ -810,9 +786,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
           if (g_data_library_2d_[p_type][p_str].find(c_type) !=
               g_data_library_2d_[p_type][p_str].end()) {
             if (g_data_library_2d_[p_type][p_str][c_type].empty() == false) {
-              child->str_val_ =
-                      pick_random_element(
-                        g_data_library_2d_[p_type][p_str][c_type]);
+              child->str_val_ = pick_random_element(
+                  g_data_library_2d_[p_type][p_str][c_type]);
             }
           }
         }
@@ -828,14 +803,6 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
   }
 
   return true;
-}
-
-void Mutator::clear_scope_library(bool clear_define) {
-  int level = clear_define ? 0 : 1;
-  int sz = scope_library_.size();
-  scope_library_.clear();
-
-  return;
 }
 
 static IR *search_mapped_ir(IR *ir, DATATYPE type) {
@@ -917,9 +884,8 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
 }
 
 IR *Mutator::get_ir_from_library(IRTYPE type) {
-  const int generate_prop = 1;
-  const int threshold = 0;
+  auto &bucket = ir_library_[type];
   static IR *empty_ir = new IR(kStringLiteral, "");
-  if (ir_library_[type].empty()) return empty_ir;
-  return pick_random_element(ir_library_[type]);
+  if (bucket.empty()) return empty_ir;
+  return pick_random_element(bucket);
 }

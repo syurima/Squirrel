@@ -53,8 +53,6 @@ class Mutator {
 
   IR *get_ir_from_library(IRTYPE);
 
-  void reset_data_library(); //?
-
   void extract_struct(IR *, bool use_unique_names = false); //?
 
   bool fix(IR *root); //?
@@ -70,7 +68,6 @@ class Mutator {
     map<IR *, vector<IR *>> build_graph(
       IR *stmt_root, map<int, map<DATATYPE, vector<IR *>>> &scope_library); //?
   bool fill_stmt_graph(map<IR *, vector<IR *>> &graph); //?
-  void clear_scope_library(bool clear_define); //?
   IR *find_closest_node(IR *stmt_root, IR *node, DATATYPE type); //?
   bool fill_one(IR *parent); //?
   bool fill_one_pair(IR *parent, IR *child); //?
@@ -123,10 +120,7 @@ class Mutator {
   map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> data_library_2d_; //?
 
   map<DATATYPE, vector<string>> g_data_library_; //?
-  map<DATATYPE, set<unsigned long>> g_data_library_hash_; //?
   map<DATATYPE, map<string, map<DATATYPE, vector<string>>>> g_data_library_2d_; //?
-  map<DATATYPE, map<string, map<DATATYPE, vector<string>>>>
-  g_data_library_2d_hash_; //?
 
   map<int, map<DATATYPE, vector<IR *>>> scope_library_; //?
 

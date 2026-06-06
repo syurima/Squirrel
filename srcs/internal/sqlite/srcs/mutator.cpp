@@ -166,7 +166,10 @@ void Mutator::init_value_library() {
 void Mutator::init_common_string(const string &f_common_string) {
   common_string_library_.push_back("DO_NOT_BE_EMPTY");
 
-  if (f_common_string == "") return;
+  if (f_common_string == "") {
+    println("[*] no common string file provided, using default common string library");
+    return;
+  }
 
   ifstream input_string(f_common_string);
   if (!input_string.is_open()) {
@@ -595,7 +598,7 @@ IR *Mutator::strategy_insert(IR *cur) {
   if (res->left_ && !res->right_) {
     auto &lib = left_lib[res->left_->type_];
     if (!lib.empty()) {
-      res->right_ = deep_copy(lib[get_rand_int(lib.size())]);
+      res->right_ = deep_copy(pick_random_element(lib));
       return res;
     }
   }
@@ -603,7 +606,7 @@ IR *Mutator::strategy_insert(IR *cur) {
   else if (!res->left_ && res->right_) {
     auto &lib = right_lib[res->right_->type_];
     if (!lib.empty()) {
-      res->left_ = deep_copy(lib[get_rand_int(lib.size())]);
+      res->left_ = deep_copy(pick_random_element(lib));
       return res;
     }
   }
@@ -612,7 +615,7 @@ IR *Mutator::strategy_insert(IR *cur) {
   else if (!res->left_ && !res->right_) {
     auto &lib = ir_library_[res->type_];
     if (!lib.empty()) {
-      auto *blueprint = lib[get_rand_int(lib.size())];
+      auto *blueprint = pick_random_element(lib);
       if (blueprint->left_ && blueprint->right_) {
         res->left_ = deep_copy(blueprint->left_);
         res->right_ = deep_copy(blueprint->right_);
@@ -1123,5 +1126,5 @@ void Mutator::update_mutation_stats(MutationKind kind, IR *result) {
 IR *Mutator::get_ir_from_library(IRTYPE type) {
   auto &bucket = ir_library_[type];
   if (bucket.empty()) return NULL;
-  return bucket[get_rand_int(bucket.size())];
+  return pick_random_element(bucket);
 }
