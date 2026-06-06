@@ -76,8 +76,6 @@ class Mutator {
   vector<IR *> extract_statement(IR *root);
 
   map<IR *, set<IR *>> build_dependency_graph(IR *root,
-                                              map<IDTYPE, IDTYPE> &relationmap,
-                                              map<IDTYPE, IDTYPE> &crssmap,
                                               vector<IR *> &ordered_ir); //?
   vector<IR *> cut_subquery(IR *program, map<IR **, IR *> &m_save); //?
   bool fix_back(map<IR **, IR *> &m_save); //?

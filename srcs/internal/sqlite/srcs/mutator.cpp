@@ -323,7 +323,7 @@ string Mutator::validate(IR *root) {
     reset_counter();
     vector<IR *> ordered_ir;
     auto graph =
-        build_dependency_graph(root, relationmap, cross_map, ordered_ir);
+        build_dependency_graph(root, ordered_ir);
     fix_graph(graph, root, ordered_ir);
     return fix(root);
   } catch (...) {
@@ -371,8 +371,7 @@ static IR *search_mapped_ir(IR *ir, IDTYPE idtype) {
   return NULL;
 }
 
-void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix,
-                    map<IDTYPE, IDTYPE> &cross_map) {
+void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix) {
   for (auto m : cross_map) {
     vector<IR *> value;
     vector<IR *> key;
@@ -391,7 +390,7 @@ void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix,
 
     if (key.empty()) return;
     for (auto val : value) {
-      graph[key[get_rand_int(key.size())]].insert(val);
+      graph[pick_random_element(key)].insert(val);
     }
   }
 }
@@ -484,7 +483,6 @@ bool Mutator::fix_back(map<IR **, IR *> &m_save) {
 }
 
 map<IR *, set<IR *>> Mutator::build_dependency_graph(
-    IR *root, map<IDTYPE, IDTYPE> &relationmap, map<IDTYPE, IDTYPE> &cross_map,
     vector<IR *> &ordered_ir) {
   map<IR *, set<IR *>> graph;
   set<IDTYPE> type_to_fix;
@@ -502,7 +500,7 @@ map<IR *, set<IR *>> Mutator::build_dependency_graph(
     for (auto ii : ir_to_fix) {
       ordered_ir.push_back(ii);
     }
-    cross_stmt_map(graph, ir_to_fix, cross_map);
+    cross_stmt_map(graph, ir_to_fix);
     vector<IR *> v_top_table;
     toptable_map(graph, ir_to_fix, v_top_table);
     for (auto ir : ir_to_fix) {
@@ -536,7 +534,7 @@ map<IR *, set<IR *>> Mutator::build_dependency_graph(
         if (match_ir != NULL) {
           if (ir->type_ == kColumnName && ir->left_ != NULL) {
             if (v_top_table.size() > 0)
-              match_ir = v_top_table[get_rand_int(v_top_table.size())];
+              match_ir = pick_random_element(v_top_table);
             graph[match_ir].insert(ir->left_);
             if (ir->right_) {
               graph[match_ir].insert(ir->right_);
@@ -587,7 +585,7 @@ IR *Mutator::strategy_insert(IR *cur) {
   if (cur->type_ == kStatementList) {
     auto &lib = left_lib[kStatementList];
     if (!lib.empty()) {
-      auto new_right = deep_copy(lib[get_rand_int(lib.size())]);
+      auto new_right = deep_copy(pick_random_element(lib));
       return new IR(kStatementList, OPMID(";"), deep_copy(cur), new_right);
     }
   }
@@ -632,7 +630,7 @@ IR *Mutator::strategy_insert(IR *cur) {
   }
 
   deep_delete(res);
-  return deep_copy(main_lib[get_rand_int(main_lib.size())]);
+  return deep_copy(pick_random_element(main_lib));
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
@@ -848,15 +846,13 @@ string Mutator::fix(IR *root) {
 
   if (type_ == kCmdPragma) {
     string res = "PRAGMA ";
-    int lib_size = cmds_.size();
-    string &key = cmds_[get_rand_int(lib_size)];
+    string &key = pick_random_element(cmds_);
     res += key;
 
-    int value_size = m_cmd_value_lib_[key].size();
-    string value = m_cmd_value_lib_[key][get_rand_int(value_size)];
+    string value = pick_random_element(m_cmd_value_lib_[key]);
     if (!value.compare("_int_")) {
       value = string("=") +
-              to_string(value_library_[get_rand_int(value_library_.size())]);
+              to_string(pick_random_element(value_library_));
     } else if (!value.compare("_empty_")) {
       value = "";
     } else if (!value.compare("_boolean_")) {
@@ -876,19 +872,19 @@ string Mutator::fix(IR *root) {
       type_ == kOptJoinType || type_ == kOptDistinct || type_ == kNullLiteral)
     return str_val_;
   if (type_ == kStringLiteral) {
-    auto s = string_library_[get_rand_int(string_library_.size())];
+    auto s = pick_random_element(string_library_);
     return "'" + s + "'";
   }
   if (type_ == kIntLiteral)
-    return std::to_string(value_library_[get_rand_int(value_library_.size())]);
+    return std::to_string(pick_random_element(value_library_));
   if (type_ == kFloatLiteral || type_ == kconst_float)
     return std::to_string(
-        float(value_library_[get_rand_int(value_library_.size())]) + 0.1);
+        float(pick_random_element(value_library_)) + 0.1);
   if (type_ == kconst_str)
-    return string_library_[get_rand_int(string_library_.size())];
+    return pick_random_element(string_library_);
   ;
   if (type_ == kconst_int)
-    return std::to_string(value_library_[get_rand_int(value_library_.size())]);
+    return std::to_string(pick_random_element(value_library_));
 
   if (!str_val_.empty()) return str_val_;
 
