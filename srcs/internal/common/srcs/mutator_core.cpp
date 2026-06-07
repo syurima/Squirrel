@@ -113,22 +113,6 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
   return;
 }
 
-void Mutator::init_common_string(const string &filename) {
-  common_string_library_.push_back("DO_NOT_BE_EMPTY");
-  if (filename != "") {
-    ifstream input_string(filename);
-    if (!input_string.is_open()) {
-      cerr << "[!] failed to open common string file: " << filename << endl;
-      return;
-    }
-    string s;
-
-    while (getline(input_string, s)) {
-      common_string_library_.push_back(s);
-    }
-  }
-}
-
 void Mutator::init_data_library_2d(const string &filename) {
   ifstream input_file(filename);
   if (!input_file.is_open()) {
@@ -232,22 +216,6 @@ void Mutator::init_ir_library(const string &filename) {
   return;
 }
 
-void Mutator::init_safe_generate_type(const string &filename) {
-  ifstream input_file(filename);
-  if (!input_file.is_open()) {
-    cerr << "[!] failed to open safe_generate_type file: " << filename << endl;
-    return;
-  }
-  string line;
-
-  cout << "[*] init safe generate type: " << filename << endl;
-  while (getline(input_file, line)) {
-    if (line.empty()) continue;
-    auto node_type = get_nodetype_by_string("k" + line);
-    safe_generate_type_.insert(node_type);
-  }
-}
-
 void Mutator::init_mutationmap() {
   float_types_.insert({kFloatLiteral});
   int_types_.insert(kIntLiteral);
@@ -283,12 +251,9 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 
   init_value_library();
 
-  if (!f_common_string.empty()) init_common_string(f_common_string);
-
   if (!file2d.empty()) init_data_library_2d(file2d);
 
   if (!file1d.empty()) init_data_library(file1d);
-  if (!f_gen_type.empty()) init_safe_generate_type(f_gen_type);
 
   init_mutationmap();
 }

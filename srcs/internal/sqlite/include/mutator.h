@@ -52,7 +52,6 @@ class Mutator {
 
   void init_ir_library(const string &filename);
   void init_value_library();
-  void init_common_string(const string &f_common_string);
   void init_string_library(); //?
   void init_pragma(const string &pragma); //?
   void init_relationmap(); //?
@@ -102,7 +101,6 @@ class Mutator {
   vector<string> string_library_;
   set<unsigned long> string_library_hash_;
   vector<unsigned long> value_library_;
-  vector<string> common_string_library_;
 
   vector<string> cmds_; //?
   map<string, vector<string>> m_cmd_value_lib_; //?

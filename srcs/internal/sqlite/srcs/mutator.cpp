@@ -163,27 +163,6 @@ void Mutator::init_value_library() {
                         value_lib_init.end());
 }
 
-void Mutator::init_common_string(const string &f_common_string) {
-  common_string_library_.push_back("DO_NOT_BE_EMPTY");
-
-  if (f_common_string == "") {
-    println("[*] no common string file provided, using default common string library");
-    return;
-  }
-
-  ifstream input_string(f_common_string);
-  if (!input_string.is_open()) {
-    cerr << "[!] failed to open common string file: " << f_common_string
-         << endl;
-    return;
-  }
-
-  string s;
-  while (getline(input_string, s)) {
-    common_string_library_.push_back(s);
-  }
-}
-
 void Mutator::init_string_library() {
   string_library_.push_back("x");
   string_library_.push_back("v0");
@@ -231,8 +210,6 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
   init_tables();
 
   init_value_library();
-
-  if (!f_common_string.empty()) init_common_string(f_common_string);
 
   init_string_library();
 
