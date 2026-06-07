@@ -1,8 +1,5 @@
-#include "mutator.h"
-
-#include <cassert>
-
 #include <algorithm>
+#include <cassert>
 #include <cfloat>
 #include <climits>
 #include <cstdio>
@@ -11,8 +8,9 @@
 
 #include "ast.h"
 #include "define.h"
-#include "utils.h"
+#include "mutator.h"
 #include "mutator_helpers.h"
+#include "utils.h"
 
 #define _NON_REPLACE_
 
@@ -99,42 +97,57 @@ IR *Mutator::strategy_delete(IR *cur) {
 
 IR *Mutator::strategy_insert(IR *cur) {
   assert(cur);
+  if (!cur) return nullptr;
 
+  // Preserve original node for mutation
   auto res = deep_copy(cur);
-  auto parent_type = cur->type_;
+  if (!res) return nullptr;
+  auto parent_type = cur->type_;  // used for left/right lib lookups
 
-  if (res->right_ == NULL && res->left_ != NULL) {
-    auto left_type = res->left_->type_;
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->left_ != NULL && fetch_ir->left_->type_ == left_type &&
-          fetch_ir->right_ != NULL) {
-        res->right_ = deep_copy(fetch_ir->right_);
-        return res;
-      }
+  // Case 1: Missing Right Child – try left_lib based on existing left child
+  // type
+  if (res->left_ && !res->right_) {
+    auto &lib = left_lib[res->left_->type_];
+    if (!lib.empty()) {
+      res->right_ = deep_copy(pick_random_element(lib));
+      return res;
     }
-  } else if (res->right_ != NULL && res->left_ == NULL) {
-    auto right_type = res->left_->type_;
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->right_ != NULL && fetch_ir->right_->type_ == right_type &&
-          fetch_ir->left_ != NULL) {
-        res->left_ = deep_copy(fetch_ir->left_);
-        return res;
-      }
+  }
+  // Case 2: Missing Left Child – try right_lib based on existing right child type
+  else if (!res->left_ && res->right_) {
+    auto &lib = right_lib[res->right_->type_];
+    if (!lib.empty()) {
+      res->left_ = deep_copy(pick_random_element(lib));
+      return res;
     }
-  } else if (res->left_ == NULL && res->right_ == NULL) {
-    for (int k = 0; k < 4; k++) {
-      auto fetch_ir = get_ir_from_library(parent_type);
-      if (fetch_ir->right_ != NULL && fetch_ir->left_ != NULL) {
-        res->left_ = deep_copy(fetch_ir->left_);
-        res->right_ = deep_copy(fetch_ir->right_);
+  }
+
+  // Case 3: Both Children Missing (Get children from random node of parenttype)
+  else if (!res->left_ && !res->right_) {
+    auto &lib = ir_library_[res->type_];
+    if (!lib.empty()) {
+      auto *blueprint = pick_random_element(lib);
+      if (blueprint->left_ && blueprint->right_) {
+        res->left_ = deep_copy(blueprint->left_);
+        res->right_ = deep_copy(blueprint->right_);
         return res;
       }
     }
   }
 
-  return res;
+  // Fallback: Replace the entire node with a variant from the main library
+  auto &lib = ir_library_[res->type_];
+  if (!lib.empty()) {
+    auto *blueprint = pick_random_element(lib);
+    if (blueprint->left_ && blueprint->right_) {
+      res->left_ = deep_copy(blueprint->left_);
+      res->right_ = deep_copy(blueprint->right_);
+      return res;
+    }
+  }
+
+  deep_delete(res);
+  return nullptr;
 }
 
 IR *Mutator::strategy_replace(IR *cur) {

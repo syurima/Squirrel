@@ -8,11 +8,11 @@
 
 // Include dialect-specific and common headers so this file can be compiled
 // as a standalone translation unit when added to `${dbms}_impl`.
-#include "mutator.h"
 #include "ast.h"
 #include "define.h"
-#include "utils.h"
+#include "mutator.h"
 #include "mutator_helpers.h"
+#include "utils.h"
 
 using namespace std;
 using mutator_common::pick_random_element;
@@ -48,8 +48,6 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   if (v_ir_collector.empty()) return res;
   IR *root = v_ir_collector[v_ir_collector.size() - 1];
 
-  mutated_root_ = root;
-
   for (auto ir : v_ir_collector) {
     if (not_mutatable_types_.find(ir->type_) != not_mutatable_types_.end())
       continue;
@@ -78,14 +76,18 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
 
 void Mutator::add_ir_to_library(IR *cur) {
   extract_struct(cur);
-  cur = deep_copy(cur);
-  add_ir_to_library_no_deepcopy(cur);
-  return;
+  IRTYPE p_type = cur->type_;
+  unsigned long p_hash = hash(cur->to_string());
+  if (ir_library_hash_[p_type].find(p_hash) != ir_library_hash_[p_type].end()) {
+    return;
+  }
+  IR *ir_copy = deep_copy(cur);
+  add_ir_to_library_no_deepcopy(ir_copy);
 }
 
 void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
-  if (cur->left_) add_ir_to_library_no_deepcopy(cur->left_);
-  if (cur->right_) add_ir_to_library_no_deepcopy(cur->right_);
+  auto left = cur->left_;
+  auto right = cur->right_;
 
   auto type = cur->type_;
   auto h = hash(cur);
@@ -96,23 +98,19 @@ void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
   ir_library_hash_[type].insert(h);
   ir_library_[type].push_back(cur);
 
-  return;
-}
+  if (left) add_ir_to_library_no_deepcopy(left);
+  if (right) add_ir_to_library_no_deepcopy(right);
 
-void Mutator::init_common_string(const string &filename) {
-  common_string_library_.push_back("DO_NOT_BE_EMPTY");
-  if (filename != "") {
-    ifstream input_string(filename);
-    if (!input_string.is_open()) {
-      cerr << "[!] failed to open common string file: " << filename << endl;
-      return;
-    }
-    string s;
+  // update right_lib, left_lib
+  auto left_type = left ? left->type_ : kUnknown;
+  auto right_type = right ? right->type_ : kUnknown;
 
-    while (getline(input_string, s)) {
-      common_string_library_.push_back(s);
-    }
+  if (right && left) {
+    right_lib[right_type].push_back(left);
+    left_lib[left_type].push_back(right);
   }
+
+  return;
 }
 
 void Mutator::init_data_library_2d(const string &filename) {
@@ -218,39 +216,7 @@ void Mutator::init_ir_library(const string &filename) {
   return;
 }
 
-void Mutator::init_safe_generate_type(const string &filename) {
-  ifstream input_file(filename);
-  if (!input_file.is_open()) {
-    cerr << "[!] failed to open safe_generate_type file: " << filename << endl;
-    return;
-  }
-  string line;
-
-  cout << "[*] init safe generate type: " << filename << endl;
-  while (getline(input_file, line)) {
-    if (line.empty()) continue;
-    auto node_type = get_nodetype_by_string("k" + line);
-    safe_generate_type_.insert(node_type);
-  }
-}
-
-void Mutator::init(const string &f_testcase, const string &f_common_string,
-                   const string &file2d, const string &file1d,
-                   const string &f_gen_type) {
-  if (!f_testcase.empty()) init_ir_library(f_testcase);
-
-  // init value_library_
-  init_value_library();
-
-  // init common_string_library
-  if (!f_common_string.empty()) init_common_string(f_common_string);
-
-  // init data_library_2d
-  if (!file2d.empty()) init_data_library_2d(file2d);
-
-  if (!file1d.empty()) init_data_library(file1d);
-  if (!f_gen_type.empty()) init_safe_generate_type(f_gen_type);
-
+void Mutator::init_mutationmap() {
   float_types_.insert({kFloatLiteral});
   int_types_.insert(kIntLiteral);
   string_types_.insert(kStringLiteral);
@@ -278,18 +244,23 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 #endif
 }
 
-string Mutator::get_a_string() {
-  return mutator_common::pick_random_string(string_library_,
-                                            common_string_library_);
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &file2d, const string &file1d,
+                   const string &f_gen_type) {
+  if (!f_testcase.empty()) init_ir_library(f_testcase);
+
+  init_value_library();
+
+  if (!file2d.empty()) init_data_library_2d(file2d);
+
+  if (!file1d.empty()) init_data_library(file1d);
+
+  init_mutationmap();
 }
 
-unsigned long Mutator::get_a_val() {
-  assert(value_library_.size());
-
-  return pick_random_element(value_library_);
+unsigned long Mutator::hash(const string &sql) {
+  return ducking_hash(sql.c_str(), sql.size());
 }
-
-unsigned long Mutator::hash(const string &sql) { return ducking_hash(sql.c_str(), sql.size()); }
 
 unsigned long Mutator::hash(IR *root) {
   auto tmp_str = move(root->to_string());
@@ -301,14 +272,10 @@ Mutator::~Mutator() {}
 void Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
   auto type = root->type_;
-  if (root->left_) {
-    extract_struct(root->left_, use_unique_names);
-  }
-  if (root->right_) {
-    extract_struct(root->right_, use_unique_names);
-  }
 
-  if (root->left_ || root->right_) return;
+  if (root->left_) extract_struct(root->left_, use_unique_names);
+  if (root->right_) extract_struct(root->right_, use_unique_names);
+  // if (root->left_ || root->right_) return;
 
   if (root->data_type_ != kDataWhatever) {
     root->str_val_ = use_unique_names ? "x" + to_string(counter++) : "x";
@@ -324,33 +291,10 @@ void Mutator::extract_struct(IR *root, bool use_unique_names) {
   }
 }
 
-void Mutator::reset_data_library() {
+bool Mutator::validate(IR *&root) {
   data_library_.clear();
   data_library_2d_.clear();
-}
 
-string Mutator::parse_data(const string &input) {
-  string res;
-  if (!input.compare("_int_")) {
-    res = to_string(get_a_val());
-  } else if (!input.compare("_empty_")) {
-    res = "";
-  } else if (!input.compare("_boolean_")) {
-    if (get_rand_int(2) == 0)
-      res = "false";
-    else
-      res = "true";
-  } else if (!input.compare("_string_")) {
-    res = get_a_string();
-  } else {
-    res = input;
-  }
-
-  return res;
-}
-
-bool Mutator::validate(IR *&root) {
-  reset_data_library();
   string sql = root->to_string();
   auto ast = parser(sql);
   if (ast == NULL) return false;
@@ -373,56 +317,48 @@ bool Mutator::validate(IR *&root) {
 }
 
 unsigned int Mutator::calc_node(IR *root) {
-  unsigned int res = 0;
-  if (root->left_) res += calc_node(root->left_);
-  if (root->right_) res += calc_node(root->right_);
-
-  return res + 1;
+  if (root == NULL) return 0;
+  return 1 + calc_node(root->left_) + calc_node(root->right_);
 }
 
 bool Mutator::fix(IR *root) {
-  map<IR **, IR *> m_save;
-  bool res = true;
-
-  auto stmts = split_to_stmt(root, m_save, split_stmt_types_);
-
-  if (stmts.size() > 8) {
-    connect_back(m_save);
+  // Helper lambda to restore saved fragments and signal failure.
+  auto restore_and_fail = [&](map<IR **, IR *> &top,
+                              map<IR **, IR *> &sub) -> bool {
+    connect_back(top);
+    if (!sub.empty()) connect_back(sub);
     return false;
-  }
+  };
 
-  clear_scope_library(true);
+  map<IR **, IR *> top_save;
+  auto stmts = split_to_stmt(root, top_save, split_stmt_types_);
+  map<IR **, IR *> empty_sub_save;
+  if (stmts.size() > 8) return restore_and_fail(top_save, empty_sub_save);
+
+  // Process each top‑level statement.
   for (auto &stmt : stmts) {
-    map<IR **, IR *> m_substmt_save;
-    auto substmts = split_to_stmt(stmt, m_substmt_save, split_substmt_types_);
+    map<IR **, IR *> sub_save;
+    auto substmts = split_to_stmt(stmt, sub_save, split_substmt_types_);
 
-    int stmt_num = substmts.size();
-    if (stmt_num > 4) {
-      connect_back(m_save);
-      connect_back(m_substmt_save);
-      return false;
-    }
+    if (substmts.size() > 4) return restore_and_fail(top_save, sub_save);
+
+    // Process each sub‑statement.
     for (auto &substmt : substmts) {
-      clear_scope_library(false);
-      int tmp_node_num = calc_node(substmt);
-      if ((stmt_num == 1 && tmp_node_num > 150) || tmp_node_num > 120) {
-        connect_back(m_save);
-        connect_back(m_substmt_save);
-        return false;
-      }
-      res = fix_one(substmt, scope_library_) && res;
+      scope_library_.clear();
+      int node_cnt = calc_node(substmt);
+      bool too_big = (substmts.size() == 1 && node_cnt > 150) || (node_cnt > 120);
+      if (too_big) return restore_and_fail(top_save, sub_save);
 
-      if (res == false) {
-        connect_back(m_save);
-        connect_back(m_substmt_save);
-        return false;
-      }
+      if (!fix_one(substmt)) return restore_and_fail(top_save, sub_save);
     }
-    res = connect_back(m_substmt_save) && res;
-  }
-  res = connect_back(m_save) && res;
 
-  return res;
+    // Re‑attach sub‑statement fragments after successful processing.
+    connect_back(sub_save);
+  }
+
+  // Re‑attach top‑level fragments and report success.
+  connect_back(top_save);
+  return true;
 }
 
 vector<IR *> Mutator::split_to_stmt(IR *root, map<IR **, IR *> &m_save,
@@ -466,43 +402,31 @@ bool Mutator::connect_back(map<IR **, IR *> &m_save) {
 
 static set<IR *> visited;
 
-bool Mutator::fix_one(IR *stmt_root,
-                      map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+bool Mutator::fix_one(IR *root) {
   visited.clear();
-  analyze_scope(stmt_root);
-  auto graph = build_graph(stmt_root, scope_library);
+  analyze_scope(root);
+  auto graph = build_dependency_graph(root);
 
-#ifdef GRAPHLOG
-  for (auto &iter : graph) {
-    cout << "Node: " << iter.first->to_string() << " connected with:" << endl;
-    for (auto &k : iter.second) {
-      cout << k->to_string() << endl;
-    }
-    cout << "--------" << endl;
-  }
-  cout << "OUTPUT END" << endl;
-#endif
   return fill_stmt_graph(graph);
 }
 
-void Mutator::analyze_scope(IR *stmt_root) {
-  if (stmt_root->left_) {
-    analyze_scope(stmt_root->left_);
+void Mutator::analyze_scope(IR *root) {
+  if (root->left_) {
+    analyze_scope(root->left_);
   }
-  if (stmt_root->right_) {
-    analyze_scope(stmt_root->right_);
+  if (root->right_) {
+    analyze_scope(root->right_);
   }
 
-  auto data_type = stmt_root->data_type_;
+  auto data_type = root->data_type_;
   if (data_type == kDataWhatever) return;
 
-  scope_library_[stmt_root->scope_][data_type].push_back(stmt_root);
+  scope_library_[root->scope_][data_type].push_back(root);
 }
 
-map<IR *, vector<IR *>> Mutator::build_graph(
-    IR *stmt_root, map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+map<IR *, vector<IR *>> Mutator::build_dependency_graph(IR *root) {
   map<IR *, vector<IR *>> res;
-  deque<IR *> bfs = {stmt_root};
+  deque<IR *> bfs = {root};
 
   while (!bfs.empty()) {
     auto node = bfs.front();
@@ -535,19 +459,18 @@ map<IR *, vector<IR *>> Mutator::build_graph(
       for (auto &target : target_data_type_map) {
         IR *pick_node = NULL;
         if (isMapToClosestOne(cur_data_flag)) {
-          pick_node = find_closest_node(stmt_root, node, target.first);
+          pick_node = find_closest_node(root, node, target.first);
           if (pick_node && pick_node->scope_ != cur_scope) {
             pick_node = NULL;
           }
-        } else {
-          if (!node->str_val_.empty()) {
-          }
-
-          if (!isDefine(cur_data_flag) ||
-              relationmap_[cur_data_type][target.first] != kRelationElement) {
-              if (!scope_library[cur_scope][target.first].empty())
-              pick_node = pick_random_element(
-                scope_library[cur_scope][target.first]);
+        } else if (!isDefine(cur_data_flag) ||
+                   relationmap_[cur_data_type][target.first] !=
+                       kRelationElement) {
+          if (scope_library_[cur_scope].find(target.first) !=
+              scope_library_[cur_scope].end())
+               {
+            pick_node =
+              pick_random_element(scope_library_[cur_scope][target.first]);
           }
         }
         if (pick_node != NULL) res[pick_node].push_back(node);
@@ -570,7 +493,6 @@ bool Mutator::fill_stmt_graph(map<IR *, vector<IR *>> &graph) {
     }
   }
   for (auto &iter : graph) {
-    auto type1 = iter.first->data_type_;
     auto beg = iter.first;
     if (zero_indegrees[beg] == false || visited.find(beg) != visited.end()) {
       continue;
@@ -598,16 +520,12 @@ bool Mutator::fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir) {
   return res;
 }
 
-using mutator_common::replace_in_vector;
 using mutator_common::remove_in_vector;
+using mutator_common::replace_in_vector;
 
-bool Mutator::remove_one_from_datalibrary(DATATYPE datatype, const string &key) {
+bool Mutator::remove_one_from_datalibrary(DATATYPE datatype,
+                                          const string &key) {
   return remove_in_vector(key, data_library_[datatype]);
-}
-
-bool Mutator::replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
-                                           const string &new_str) {
-  return replace_in_vector(old_str, new_str, data_library_[datatype]);
 }
 
 bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
@@ -634,7 +552,7 @@ bool Mutator::replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
                                                    const string &p_key,
                                                    const string &old_c_value,
                                                    const string &new_c_value) {
-  replace_one_from_datalibrary(c_data_type, old_c_value, new_c_value);
+  replace_in_vector(old_c_value, new_c_value, data_library_[c_data_type]);
   replace_in_vector(old_c_value, new_c_value,
                     data_library_2d_[p_datatype][p_key][c_data_type]);
   return true;
@@ -743,7 +661,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
 
       if (is_replace) {
         child->str_val_ = new_name;
-        replace_one_from_datalibrary(c_type, p_str, new_name);
+        replace_in_vector(p_str, new_name, data_library_[c_type]);
 
         if (has_key(data_library_2d_, p_type)) {
           if (has_key(data_library_2d_[p_type], p_str)) {
@@ -796,8 +714,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
               break;
             }
             child->str_val_ =
-                pick_random_element(
-                  data_library_2d_[p_type][p_str][c_type]);
+                pick_random_element(data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_,
                              data_library_2d_[p_type][p_str][c_type]);
             remove_in_vector(child->str_val_, data_library_[c_type]);
@@ -806,8 +723,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                      data_library_2d_[p_type][p_str].end()) {
             if (data_library_2d_[p_type][p_str][c_type].empty() == false) {
               child->str_val_ =
-                      pick_random_element(
-                        data_library_2d_[p_type][p_str][c_type]);
+                  pick_random_element(data_library_2d_[p_type][p_str][c_type]);
             }
           } else {
             if (data_library_[c_type].empty()) {
@@ -817,8 +733,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
                 child->str_val_ = "v1";
               }
             } else
-                child->str_val_ =
-                  pick_random_element(data_library_[c_type]);
+              child->str_val_ = pick_random_element(data_library_[c_type]);
           }
         } else {
         }
@@ -828,9 +743,8 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
           if (g_data_library_2d_[p_type][p_str].find(c_type) !=
               g_data_library_2d_[p_type][p_str].end()) {
             if (g_data_library_2d_[p_type][p_str][c_type].empty() == false) {
-              child->str_val_ =
-                      pick_random_element(
-                        g_data_library_2d_[p_type][p_str][c_type]);
+              child->str_val_ = pick_random_element(
+                  g_data_library_2d_[p_type][p_str][c_type]);
             }
           }
         }
@@ -846,14 +760,6 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
   }
 
   return true;
-}
-
-void Mutator::clear_scope_library(bool clear_define) {
-  int level = clear_define ? 0 : 1;
-  int sz = scope_library_.size();
-  scope_library_.clear();
-
-  return;
 }
 
 static IR *search_mapped_ir(IR *ir, DATATYPE type) {
@@ -878,15 +784,15 @@ static IR *search_mapped_ir(IR *ir, DATATYPE type) {
   return NULL;
 }
 
-IR *Mutator::find_closest_node(IR *stmt_root, IR *node, DATATYPE type) {
+IR *Mutator::find_closest_node(IR *root, IR *node, DATATYPE type) {
   auto cur = node;
   while (true) {
-    auto parent = locate_parent(stmt_root, cur);
+    auto parent = locate_parent(root, cur);
     if (!parent) break;
     bool flag = false;
     while (parent->left_ == NULL || parent->right_ == NULL) {
       cur = parent;
-      parent = locate_parent(stmt_root, cur);
+      parent = locate_parent(root, cur);
       if (!parent) {
         flag = true;
         break;
@@ -934,45 +840,9 @@ int Mutator::try_fix(char *buf, int len, char *&new_buf, int &new_len) {
   return 1;
 }
 
-pair<string, string> Mutator::get_data_2d_by_type(DATATYPE type1,
-                                                  DATATYPE type2) {
-  pair<string, string> res("", "");
-  auto size = data_library_2d_[type1].size();
-
-  if (size == 0) return res;
-  auto rint = get_rand_int(size);
-
-  int counter = 0;
-  for (auto &i : data_library_2d_[type1]) {
-    if (counter++ == rint) {
-      return std::make_pair(i.first, pick_random_element(i.second[type2]));
-    }
-  }
-  return res;
-}
-
-IR *Mutator::generate_ir_by_type(IRTYPE type) {
-  auto ast_node = generate_ast_node_by_type(type);
-  ast_node->generate();
-  vector<IR *> tmp_vector;
-  ast_node->translate(tmp_vector);
-  assert(tmp_vector.size());
-
-  return tmp_vector[tmp_vector.size() - 1];
-}
-
 IR *Mutator::get_ir_from_library(IRTYPE type) {
-  const int generate_prop = 1;
-  const int threshold = 0;
+  auto &bucket = ir_library_[type];
   static IR *empty_ir = new IR(kStringLiteral, "");
-#ifdef USEGENERATE
-  if (ir_library_[type].empty() == true ||
-      (get_rand_int(400) == 0 && type != kUnknown)) {
-    auto ir = generate_ir_by_type(type);
-    add_ir_to_library_no_deepcopy(ir);
-    return ir;
-  }
-#endif
-  if (ir_library_[type].empty()) return empty_ir;
-  return pick_random_element(ir_library_[type]);
+  if (bucket.empty()) return empty_ir;
+  return pick_random_element(bucket);
 }

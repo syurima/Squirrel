@@ -69,10 +69,10 @@ IR *deep_copy(const IR *root) {
   IR *left = NULL, *right = NULL, *copy_res;
 
   if (root->left_)
-    left = deep_copy(root->left_);  // do you have a second version for
-                                    // deep_copy that accept only one argument?
+    left = deep_copy(root->left_);
+
   if (root->right_)
-    right = deep_copy(root->right_);  // no I forget to update here
+    right = deep_copy(root->right_);
 
   copy_res = new IR(root, left, right);
 
@@ -86,7 +86,6 @@ string IR::to_string() {
 }
 
 string IR::to_string_core() {
-  // cout << get_string_by_nodetype(this->type_) << endl;
   switch (type_) {
     case kIntLiteral:
       return std::to_string(int_val_);

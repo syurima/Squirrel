@@ -9,27 +9,14 @@
 #include <deque>
 #include <fstream>
 
+#include "../../common/include/mutator_helpers.h"
 #include "../include/ast.h"
 #include "../include/define.h"
 #include "../include/utils.h"
-#include "../../common/include/mutator_helpers.h"
 
 using namespace std;
 using mutator_common::pick_random_element;
 using mutator_common::pick_random_or;
-
-namespace {
-void deep_delete_unique(IR *root, set<IR *> &visited) {
-  if (root == NULL || visited.find(root) != visited.end()) return;
-
-  visited.insert(root);
-  deep_delete_unique(root->left_, visited);
-  deep_delete_unique(root->right_, visited);
-
-  if (root->op_ != NULL) delete root->op_;
-  delete root;
-}
-}  // namespace
 
 map<string, vector<string>> Mutator::m_tables;
 vector<string> Mutator::v_table_names;
@@ -37,19 +24,15 @@ vector<string> Mutator::v_table_names;
 IR *Mutator::deep_copy_with_record(const IR *root, const IR *record) {
   IR *left = NULL, *right = NULL, *copy_res;
 
-  if (root->left_)
-    left = deep_copy_with_record(
-        root->left_, record);  // do you have a second version for deep_copy
-                               // that accept only one argument?
-  if (root->right_)
-    right = deep_copy_with_record(root->right_,
-                                  record);  // no I forget to update here
+  if (root->left_) left = deep_copy_with_record(root->left_, record);
+  if (root->right_) right = deep_copy_with_record(root->right_, record);
 
   if (root->op_ != NULL)
-    copy_res = new IR(
-        root->type_,
-        OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_), left,
-        right, root->float_val_, root->str_val_, root->name_, root->mutated_times_);
+    copy_res =
+        new IR(root->type_,
+               OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_),
+               left, right, root->float_val_, root->str_val_, root->name_,
+               root->mutated_times_);
   else
     copy_res = new IR(root->type_, NULL, left, right, root->float_val_,
                       root->str_val_, root->name_, root->mutated_times_);
@@ -83,7 +66,7 @@ bool Mutator::check_node_num(IR *root, unsigned int limit) {
 
 vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   vector<IR *> res;
-  set<unsigned long> res_hash;
+  if (v_ir_collector.empty()) return res;
   IR *root = v_ir_collector[v_ir_collector.size() - 1];
 
   for (auto ir : v_ir_collector) {
@@ -97,16 +80,17 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
       if (!check_node_num(new_ir_tree, 100)) {
         deep_delete(new_ir_tree);
         continue;
-      }
+      }  // TODO: remove or add for common
 
-      string tmp = extract_struct(new_ir_tree);
+      extract_struct(new_ir_tree);
+      string tmp = new_ir_tree->to_string();
       unsigned tmp_hash = hash(tmp);
-      if (res_hash.find(tmp_hash) != res_hash.end()) {
+      if (global_hash_.find(tmp_hash) != global_hash_.end()) {
         deep_delete(new_ir_tree);
         continue;
       }
 
-      res_hash.insert(tmp_hash);
+      global_hash_.insert(tmp_hash);
       res.push_back(new_ir_tree);
     }
   }
@@ -114,45 +98,44 @@ vector<IR *> Mutator::mutate_all(vector<IR *> &v_ir_collector) {
   return res;
 }
 
-void Mutator::init(const string &f_testcase, const string &f_common_string,
-                        const string &pragma) {
-  ifstream input_test(f_testcase);
+void Mutator::init_ir_library(const string &filename) {
+  ifstream input_file(filename);
+  if (!input_file.is_open()) {
+    cerr << "[!] failed to open ir_library file: " << filename << endl;
+    return;
+  }
   string line;
 
-  // init lib from multiple sql
-  while (getline(input_test, line)) {
+  cout << "[*] init ir_library: " << filename << endl;
+  while (getline(input_file, line)) {
+    if (line.empty()) continue;
     auto p = parser(line);
-    if (p == NULL) continue;
+    if (p == nullptr) continue;
 
     vector<IR *> v_ir;
     auto res = p->translate(v_ir);
     p->deep_delete();
-    p = NULL;
-    string strip_sql = extract_struct(res);
-    deep_delete(res);
-    p = parser(strip_sql);
+    p = nullptr;
 
-    if (p == NULL) continue;
-
-    res = p->translate(v_ir);
-    p->deep_delete();
-    p = NULL;
     add_ir_to_library(res);
     deep_delete(res);
-    ;
   }
+  return;
+}
 
-  // init utils::m_tables
+void Mutator::init_tables() {
   vector<string> v_tmp = {"haha1", "haha2", "haha3"};
   v_table_names.insert(v_table_names.end(), v_tmp.begin(), v_tmp.end());
+
   m_tables["haha1"] = {"ducking_column0_1", "ducking_column1_1",
                        "ducking_column2_1"};
   m_tables["haha2"] = {"ducking_column0_2", "ducking_column1_2",
                        "ducking_column2_2"};
   m_tables["haha3"] = {"ducking_column0_3", "ducking_column1_3",
                        "ducking_column2_3"};
+}
 
-  // init value_library_
+void Mutator::init_value_library() {
   vector<unsigned long> value_lib_init = {0,
                                           (unsigned long)LONG_MAX,
                                           (unsigned long)ULONG_MAX,
@@ -178,23 +161,18 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 
   value_library_.insert(value_library_.begin(), value_lib_init.begin(),
                         value_lib_init.end());
+}
 
-  // init common_string_library_
-  common_string_library_.push_back("DO_NOT_BE_EMPTY");
-  if (f_common_string != "") {
-    ifstream input_string(f_common_string);
-    string s;
-
-    while (getline(input_string, s)) {
-      common_string_library_.push_back(s);
-    }
-  }
+void Mutator::init_string_library() {
   string_library_.push_back("x");
   string_library_.push_back("v0");
   string_library_.push_back("v1");
+}
 
+void Mutator::init_pragma(const string &pragma) {
   ifstream input_pragma(pragma);
   assert(input_pragma.is_open());
+
   string s;
   cout << "[duck]start init pragma" << endl;
   while (getline(input_pragma, s)) {
@@ -202,6 +180,7 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
 
     auto pos = s.find('=');
     if (pos == string::npos) continue;
+
     string k = s.substr(0, pos - 1);
     string v = s.substr(pos + 2);
     if (find(cmds_.begin(), cmds_.end(), k) == cmds_.end()) {
@@ -212,13 +191,31 @@ void Mutator::init(const string &f_testcase, const string &f_common_string,
   }
 
   assert(!cmds_.empty());
+}
+
+void Mutator::init_relationmap() {
+  assert(!cmds_.empty());
   relationmap[id_column_name] = id_top_table_name;
   relationmap[id_table_name] = id_top_table_name;
   relationmap[id_index_name] = id_top_table_name;
   relationmap[id_create_column_name] = id_create_table_name;
   relationmap[id_pragma_value] = id_pragma_name;
   cross_map[id_top_table_name] = id_create_table_name;
-  return;
+}
+
+void Mutator::init(const string &f_testcase, const string &f_common_string,
+                   const string &pragma) {
+  if (!f_testcase.empty()) init_ir_library(f_testcase);
+
+  init_tables();
+
+  init_value_library();
+
+  init_string_library();
+
+  init_pragma(pragma);
+
+  init_relationmap();
 }
 
 vector<IR *> Mutator::mutate(IR *input) {
@@ -302,8 +299,7 @@ string Mutator::validate(IR *root) {
 
     reset_counter();
     vector<IR *> ordered_ir;
-    auto graph =
-        build_dependency_graph(root, relationmap, cross_map, ordered_ir);
+    auto graph = build_dependency_graph(root, ordered_ir);
     fix_graph(graph, root, ordered_ir);
     return fix(root);
   } catch (...) {
@@ -351,8 +347,8 @@ static IR *search_mapped_ir(IR *ir, IDTYPE idtype) {
   return NULL;
 }
 
-void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix,
-                    map<IDTYPE, IDTYPE> &cross_map) {
+void Mutator::cross_stmt_map(map<IR *, set<IR *>> &graph,
+                             vector<IR *> &ir_to_fix) {
   for (auto m : cross_map) {
     vector<IR *> value;
     vector<IR *> key;
@@ -371,7 +367,7 @@ void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix,
 
     if (key.empty()) return;
     for (auto val : value) {
-      graph[key[get_rand_int(key.size())]].insert(val);
+      graph[pick_random_element(key)].insert(val);
     }
   }
 }
@@ -463,9 +459,8 @@ bool Mutator::fix_back(map<IR **, IR *> &m_save) {
   return true;
 }
 
-map<IR *, set<IR *>> Mutator::build_dependency_graph(
-    IR *root, map<IDTYPE, IDTYPE> &relationmap, map<IDTYPE, IDTYPE> &cross_map,
-    vector<IR *> &ordered_ir) {
+map<IR *, set<IR *>> Mutator::build_dependency_graph(IR *root,
+                                                     vector<IR *> &ordered_ir) {
   map<IR *, set<IR *>> graph;
   set<IDTYPE> type_to_fix;
   map<IR **, IR *> m_save;
@@ -482,59 +477,68 @@ map<IR *, set<IR *>> Mutator::build_dependency_graph(
     for (auto ii : ir_to_fix) {
       ordered_ir.push_back(ii);
     }
-    cross_stmt_map(graph, ir_to_fix, cross_map);
+    cross_stmt_map(graph, ir_to_fix);
     vector<IR *> v_top_table;
     toptable_map(graph, ir_to_fix, v_top_table);
     for (auto ir : ir_to_fix) {
       auto idtype = ir->id_type_;
-      graph[ir].empty();
+      graph[ir].clear();
       if (relationmap.find(idtype) == relationmap.end()) {
         continue;
       }
 
-      auto curptr = ir;
-      bool flag = false;
-      while (true) {
-        auto pptr = locate_parent(stmt, curptr);
-        if (pptr == NULL) break;
-        while (pptr->left_ == NULL || pptr->right_ == NULL) {
-          curptr = pptr;
-          pptr = locate_parent(stmt, curptr);
-          if (pptr == NULL) {
-            flag = true;
-            break;
+      IR *match_ir = find_closest_node(stmt, ir, relationmap[idtype]);
+
+      if (match_ir != NULL) {
+        if (ir->type_ == kColumnName && ir->left_ != NULL) {
+          if (v_top_table.size() > 0)
+            match_ir = pick_random_element(v_top_table);
+          graph[match_ir].insert(ir->left_);
+          if (ir->right_) {
+            graph[match_ir].insert(ir->right_);
+            ir->left_->id_type_ = id_table_name;
+            ir->right_->id_type_ = id_column_name;
+            ir->id_type_ = id_whatever;
           }
-        }
-        if (flag) break;
-
-        auto to_search_child = pptr->left_;
-        if (pptr->left_ == curptr) {
-          to_search_child = pptr->right_;
-        }
-
-        auto match_ir = search_mapped_ir(to_search_child, relationmap[idtype]);
-        if (match_ir != NULL) {
-          if (ir->type_ == kColumnName && ir->left_ != NULL) {
-            if (v_top_table.size() > 0)
-              match_ir = v_top_table[get_rand_int(v_top_table.size())];
-            graph[match_ir].insert(ir->left_);
-            if (ir->right_) {
-              graph[match_ir].insert(ir->right_);
-              ir->left_->id_type_ = id_table_name;
-              ir->right_->id_type_ = id_column_name;
-              ir->id_type_ = id_whatever;
-            }
-          } else
-            graph[match_ir].insert(ir);
-          break;
-        }
-        curptr = pptr;
+        } else
+          graph[match_ir].insert(ir);
       }
     }
   }
 
   fix_back(m_save);
   return graph;
+}
+
+IR *Mutator::find_closest_node(IR *root, IR *current_ir, IDTYPE target_idtype) {
+  IR *curptr = current_ir;
+  while (true) {
+    IR *pptr = locate_parent(root, curptr);
+    if (pptr == NULL) break;
+
+    bool flag = false;
+    while (pptr->left_ == NULL || pptr->right_ == NULL) {
+      curptr = pptr;
+      pptr = locate_parent(root, curptr);
+      if (pptr == NULL) {
+        flag = true;
+        break;
+      }
+    }
+    if (flag) break;
+
+    IR *to_search_child = pptr->left_;
+    if (pptr->left_ == curptr) {
+      to_search_child = pptr->right_;
+    }
+
+    IR *match_ir = search_mapped_ir(to_search_child, target_idtype);
+    if (match_ir != NULL) {
+      return match_ir;
+    }
+    curptr = pptr;  // Move up to the parent and continue searching
+  }
+  return NULL;  // No matching node found
 }
 
 IR *Mutator::strategy_delete(IR *cur) {
@@ -563,46 +567,60 @@ IR *Mutator::strategy_delete(IR *cur) {
 IR *Mutator::strategy_insert(IR *cur) {
   assert(cur);
 
+  // Special Case: Append to Statement List
+  if (cur->type_ == kStatementList) {
+    auto &lib = left_lib[kStatementList];
+    if (!lib.empty()) {
+      auto new_right = deep_copy(pick_random_element(lib));
+      return new IR(kStatementList, OPMID(";"), deep_copy(cur), new_right);
+    }
+  }
+
   auto res = deep_copy(cur);
 
-  if (cur->type_ == kStatementList) {
-    int size = left_lib[kStatementList].size();
-    auto new_right = deep_copy(left_lib[kStatementList][get_rand_int(size)]);
-    auto new_res = new IR(kStatementList, OPMID(";"), res, new_right);
-    return new_res;
-  }
-
-  if (res->right_ == NULL && res->left_ != NULL) {
-    auto left_type = res->left_->type_;
-    auto left_lib_size = left_lib[left_type].size();
-    if (left_lib_size != 0) {
-      auto new_right =
-          deep_copy(left_lib[left_type][get_rand_int(left_lib_size)]);
-      res->right_ = new_right;
+  // Case 1: Missing Right Child
+  if (res->left_ && !res->right_) {
+    auto &lib = left_lib[res->left_->type_];
+    if (!lib.empty()) {
+      res->right_ = deep_copy(pick_random_element(lib));
       return res;
     }
-  } else if (res->right_ != NULL && res->left_ == NULL) {
-    auto right_type = res->right_->type_;
-    auto right_lib_size = right_lib[right_type].size();
-    if (right_lib_size != 0) {
-      auto new_left =
-          deep_copy(right_lib[right_type][get_rand_int(right_lib_size)]);
-      res->left_ = new_left;
+  }
+  // Case 2: Missing Left Child
+  else if (!res->left_ && res->right_) {
+    auto &lib = right_lib[res->right_->type_];
+    if (!lib.empty()) {
+      res->left_ = deep_copy(pick_random_element(lib));
       return res;
     }
   }
 
-  int lib_size = ir_library_[res->type_].size();
-  if (lib_size == 0) {
+  // Case 3: Both Children Missing (Get children from random node of parenttype)
+  else if (!res->left_ && !res->right_) {
+    auto &lib = ir_library_[res->type_];
+    if (!lib.empty()) {
+      auto *blueprint = pick_random_element(lib);
+      if (blueprint->left_ && blueprint->right_) {
+        res->left_ = deep_copy(blueprint->left_);
+        res->right_ = deep_copy(blueprint->right_);
+        return res;
+      }
+    }
+  }
+
+  // Fallback: Replace the entire node with a variant from the main library
+  auto &lib = ir_library_[res->type_];
+  if (!lib.empty()) {
+    auto *blueprint = pick_random_element(lib);
+    if (blueprint->left_ && blueprint->right_) {
+      res->left_ = deep_copy(blueprint->left_);
+      res->right_ = deep_copy(blueprint->right_);
+      return res;
+    }
+  } else {
     deep_delete(res);
-    return NULL;
+    return nullptr;
   }
-
-  auto save = res;
-  res = deep_copy(ir_library_[res->type_][get_rand_int(lib_size)]);
-  deep_delete(save);
-
-  return res;
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
@@ -675,45 +693,40 @@ bool Mutator::lucky_enough_to_be_mutated(unsigned int mutated_times) {
   return false;
 }
 
-void Mutator::add_ir_to_library(IR *ir) {
-  IRTYPE p_type = ir->type_;
-  unsigned long p_hash = hash(ir->to_string());
-  if (ir_library_hash_[p_type].find(p_hash) !=
-      ir_library_hash_[p_type].end()) {
+void Mutator::add_ir_to_library(IR *cur) {
+  extract_struct(cur);
+  IRTYPE p_type = cur->type_;
+  unsigned long p_hash = hash(cur->to_string());
+  if (ir_library_hash_[p_type].find(p_hash) != ir_library_hash_[p_type].end()) {
     return;
   }
-  IR *ir_copy = deep_copy(ir);
+  IR *ir_copy = deep_copy(cur);
   add_ir_to_library_no_deepcopy(ir_copy);
 }
 
-void Mutator::add_ir_to_library_no_deepcopy(IR *ir) {
+void Mutator::add_ir_to_library_no_deepcopy(IR *cur) {
+  auto left = cur->left_;
+  auto right = cur->right_;
 
-  string p_str = ir->to_string();
-  unsigned long p_hash = hash(p_str);
-  IRTYPE p_type = ir->type_;
-  IRTYPE left_type = kEmpty, right_type = kEmpty;
-
-  if (ir_library_hash_[p_type].find(p_hash) !=
-      ir_library_hash_[p_type].end()) {
+  auto type = cur->type_;
+  auto h = hash(cur);
+  if (find(ir_library_hash_[type].begin(), ir_library_hash_[type].end(), h) !=
+      ir_library_hash_[type].end())
     return;
-  }
 
-  ir_library_hash_[p_type].insert(p_hash);
-  ir_library_[p_type].push_back(ir);
+  ir_library_hash_[type].insert(h);
+  ir_library_[type].push_back(cur);
 
-  if (ir->left_) {
-    left_type = ir->left_->type_;
-    add_ir_to_library_no_deepcopy(ir->left_);
-  }
-  if (ir->right_) {
-    right_type = ir->right_->type_;
-    add_ir_to_library_no_deepcopy(ir->right_);
-  }
+  if (left) add_ir_to_library_no_deepcopy(left);
+  if (right) add_ir_to_library_no_deepcopy(right);
 
-  // update right_lib, left_lib (sqlite-specific indexes)
-  if (ir->right_ && ir->left_) {
-    right_lib[right_type].push_back(ir->left_);
-    left_lib[left_type].push_back(ir->right_);
+  // update right_lib, left_lib
+  auto left_type = left ? left->type_ : kUnknown;
+  auto right_type = right ? right->type_ : kUnknown;
+
+  if (right && left) {
+    right_lib[right_type].push_back(left);
+    left_lib[left_type].push_back(right);
   }
 
   return;
@@ -725,34 +738,9 @@ unsigned long Mutator::hash(const string &sql) {
 
 unsigned long Mutator::hash(IR *root) { return this->hash(root->to_string()); }
 
+Mutator::~Mutator() {}
 
-Mutator::~Mutator() {
-  cout << "HERE" << endl;
-  set<IR *> visited;
-
-  // delete base ir_library_ (primary 2D storage now owned here)
-  for (auto &i : ir_library_) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-
-  // delete left_lib
-  for (auto &i : left_lib) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-
-  // delete right_lib
-  for (auto &i : right_lib) {
-    for (auto &ir : i.second) {
-      deep_delete_unique(ir, visited);
-    }
-  }
-}
-
-void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph, 
+void Mutator::fix_one(IR *fixed_key, map<IR *, set<IR *>> &graph,
                       set<IR *> &visited) {
   if (fixed_key->id_type_ == id_create_table_name) {
     string tablename = fixed_key->str_val_;
@@ -802,7 +790,7 @@ void Mutator::fix_graph(map<IR *, set<IR *>> &graph, IR *root,
       continue;
     }
     visited.insert(iter.first);
-        if (iter.second.empty()) {
+    if (iter.second.empty()) {
       if (iter.first->id_type_ == id_column_name) {
         string tablename = pick_random_or(v_table_names, gen_id_name());
         auto &columns = m_tables[tablename];
@@ -848,15 +836,12 @@ string Mutator::fix(IR *root) {
 
   if (type_ == kCmdPragma) {
     string res = "PRAGMA ";
-    int lib_size = cmds_.size();
-    string &key = cmds_[get_rand_int(lib_size)];
+    const string &key = pick_random_element(cmds_);
     res += key;
 
-    int value_size = m_cmd_value_lib_[key].size();
-    string value = m_cmd_value_lib_[key][get_rand_int(value_size)];
+    string value = pick_random_element(m_cmd_value_lib_[key]);
     if (!value.compare("_int_")) {
-      value = string("=") +
-              to_string(value_library_[get_rand_int(value_library_.size())]);
+      value = string("=") + to_string(pick_random_element(value_library_));
     } else if (!value.compare("_empty_")) {
       value = "";
     } else if (!value.compare("_boolean_")) {
@@ -876,19 +861,17 @@ string Mutator::fix(IR *root) {
       type_ == kOptJoinType || type_ == kOptDistinct || type_ == kNullLiteral)
     return str_val_;
   if (type_ == kStringLiteral) {
-    auto s = string_library_[get_rand_int(string_library_.size())];
+    auto s = pick_random_element(string_library_);
     return "'" + s + "'";
   }
   if (type_ == kIntLiteral)
-    return std::to_string(value_library_[get_rand_int(value_library_.size())]);
+    return std::to_string(pick_random_element(value_library_));
   if (type_ == kFloatLiteral || type_ == kconst_float)
-    return std::to_string(
-        float(value_library_[get_rand_int(value_library_.size())]) + 0.1);
-  if (type_ == kconst_str)
-    return string_library_[get_rand_int(string_library_.size())];
+    return std::to_string(float(pick_random_element(value_library_)) + 0.1);
+  if (type_ == kconst_str) return pick_random_element(string_library_);
   ;
   if (type_ == kconst_int)
-    return std::to_string(value_library_[get_rand_int(value_library_.size())]);
+    return std::to_string(pick_random_element(value_library_));
 
   if (!str_val_.empty()) return str_val_;
 
@@ -906,59 +889,66 @@ unsigned int Mutator::calc_node(IR *root) {
   return 1 + calc_node(root->left_) + calc_node(root->right_);
 }
 
-string Mutator::extract_struct(IR *root, bool use_unique_names) {
+void Mutator::extract_struct(IR *root, bool use_unique_names) {
   static int counter = 0;
-  string res;
-  auto *right_ = root->right_, *left_ = root->left_;
-  auto *op_ = root->op_;
-  auto type_ = root->type_;
-  auto str_val_ = root->str_val_;
 
-  if (type_ == kColumnName && str_val_ == "*") return str_val_;
+  if (root == nullptr) return;
+
+  if (root->left_) extract_struct(root->left_, use_unique_names);
+  if (root->right_) extract_struct(root->right_, use_unique_names);
+
+  auto type_ = root->type_;
+
+  if (type_ == kColumnName && root->str_val_ == "*") return;
+
   if (type_ == kOptOrderType || type_ == kNullLiteral || type_ == kColumnType ||
       type_ == kSetType || type_ == kOptJoinType || type_ == kOptDistinct)
-    return str_val_;
+    return;
+
   if (root->id_type_ != id_whatever && root->id_type_ != id_module_name) {
-    if (use_unique_names) return "x" + to_string(counter++);
-    return "x";
+    root->str_val_ = use_unique_names ? "x" + to_string(counter++) : "x";
+    return;
   }
+
   if (type_ == kPrepareTargetQuery || type_ == kStringLiteral) {
-    string str_val = str_val_;
+    string str_val = root->str_val_;
+
     str_val.erase(std::remove(str_val.begin(), str_val.end(), '\''),
                   str_val.end());
     str_val.erase(std::remove(str_val.begin(), str_val.end(), '"'),
                   str_val.end());
+
     string magic_string = magic_string_generator(str_val);
     unsigned long h = hash(magic_string);
+
     if (string_library_hash_.find(h) == string_library_hash_.end()) {
       string_library_.push_back(magic_string);
       string_library_hash_.insert(h);
     }
-    return "'y'";
+
+    root->str_val_ = "'y'";
+    return;
   }
+
   if (type_ == kIntLiteral) {
-    value_library_.push_back(root->int_val_);
-    return "10";
+    root->int_val_ = 10;
+    return;
   }
+
   if (type_ == kFloatLiteral || type_ == kconst_float) {
-    value_library_.push_back((unsigned long)root->float_val_);
-    return "0.1";
+    root->float_val_ = 0.1;
+    return;
   }
+
   if (type_ == kconst_int) {
-    value_library_.push_back(root->int_val_);
-    return "11";
+    root->int_val_ = 11;
+    return;
   }
-  if (type_ == kFilePath) return "'file_name'";
 
-  if (!str_val_.empty()) return str_val_;
-  if (op_ != NULL) res += op_->prefix_ + " ";
-  if (left_ != NULL) res += extract_struct(left_, use_unique_names) + " ";
-  if (op_ != NULL) res += op_->middle_ + " ";
-  if (right_ != NULL) res += extract_struct(right_, use_unique_names) + " ";
-  if (op_ != NULL) res += op_->suffix_;
-
-  trim_string(res);
-  return res;
+  if (type_ == kFilePath) {
+    root->str_val_ = "'file_name'";
+    return;
+  }
 }
 
 void Mutator::add_new_table(IR *root, string &table_name) {
@@ -1045,9 +1035,8 @@ MutationWeights Mutator::get_seed_adaptive_weights(IR *input) {
 }
 
 MutationKind Mutator::choose_mutation_kind(const MutationWeights &weights) {
-  int total = weights.delete_weight
-            + weights.insert_weight
-            + weights.replace_weight;
+  int total =
+      weights.delete_weight + weights.insert_weight + weights.replace_weight;
 
   int r = get_rand_int(total);
 
@@ -1117,9 +1106,8 @@ void Mutator::update_mutation_stats(MutationKind kind, IR *result) {
   }
 }
 
-
 IR *Mutator::get_ir_from_library(IRTYPE type) {
   auto &bucket = ir_library_[type];
   if (bucket.empty()) return NULL;
-  return bucket[get_rand_int(bucket.size())];
+  return pick_random_element(bucket);
 }
