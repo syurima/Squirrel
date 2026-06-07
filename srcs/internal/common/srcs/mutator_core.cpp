@@ -323,8 +323,8 @@ unsigned int Mutator::calc_node(IR *root) {
 
 bool Mutator::fix(IR *root) {
   // Helper lambda to restore saved fragments and signal failure.
-  auto restore_and_fail = [&](const map<IR **, IR *> &top,
-                              const map<IR **, IR *> &sub) -> bool {
+  auto restore_and_fail = [&](map<IR **, IR *> &top,
+                              map<IR **, IR *> &sub) -> bool {
     connect_back(top);
     if (!sub.empty()) connect_back(sub);
     return false;
@@ -332,7 +332,8 @@ bool Mutator::fix(IR *root) {
 
   map<IR **, IR *> top_save;
   auto stmts = split_to_stmt(root, top_save, split_stmt_types_);
-  if (stmts.size() > 8) return restore_and_fail(top_save, {});
+  map<IR **, IR *> empty_sub_save;
+  if (stmts.size() > 8) return restore_and_fail(top_save, empty_sub_save);
 
   // Process each top‑level statement.
   for (auto &stmt : stmts) {
@@ -465,8 +466,12 @@ map<IR *, vector<IR *>> Mutator::build_dependency_graph(IR *root) {
         } else if (!isDefine(cur_data_flag) ||
                    relationmap_[cur_data_type][target.first] !=
                        kRelationElement) {
-          pick_node =
+          if (scope_library_[cur_scope].find(target.first) !=
+              scope_library_[cur_scope].end())
+               {
+            pick_node =
               pick_random_element(scope_library_[cur_scope][target.first]);
+          }
         }
         if (pick_node != NULL) res[pick_node].push_back(node);
       }

@@ -97,17 +97,11 @@ IR *Mutator::strategy_delete(IR *cur) {
 
 IR *Mutator::strategy_insert(IR *cur) {
   assert(cur);
-  // Special Case: Append to Statement List (mirrors sqlite implementation)
-  if (cur->type_ == kStatementList) {
-    auto &lib = left_lib[kStatementList];
-    if (!lib.empty()) {
-      auto new_right = deep_copy(pick_random_element(lib));
-      return new IR(kStatementList, OPMID(";"), deep_copy(cur), new_right);
-    }
-  }
+  if (!cur) return nullptr;
 
   // Preserve original node for mutation
   auto res = deep_copy(cur);
+  if (!res) return nullptr;
   auto parent_type = cur->type_;  // used for left/right lib lookups
 
   // Case 1: Missing Right Child – try left_lib based on existing left child
@@ -150,10 +144,10 @@ IR *Mutator::strategy_insert(IR *cur) {
       res->right_ = deep_copy(blueprint->right_);
       return res;
     }
-  } else {
-    deep_delete(res);
-    return nullptr;
   }
+
+  deep_delete(res);
+  return nullptr;
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
