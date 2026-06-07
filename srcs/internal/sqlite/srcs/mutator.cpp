@@ -299,8 +299,7 @@ string Mutator::validate(IR *root) {
 
     reset_counter();
     vector<IR *> ordered_ir;
-    auto graph =
-        build_dependency_graph(root, ordered_ir);
+    auto graph = build_dependency_graph(root, ordered_ir);
     fix_graph(graph, root, ordered_ir);
     return fix(root);
   } catch (...) {
@@ -348,7 +347,8 @@ static IR *search_mapped_ir(IR *ir, IDTYPE idtype) {
   return NULL;
 }
 
-void cross_stmt_map(map<IR *, set<IR *>> &graph, vector<IR *> &ir_to_fix) {
+void Mutator::cross_stmt_map(map<IR *, set<IR *>> &graph,
+                             vector<IR *> &ir_to_fix) {
   for (auto m : cross_map) {
     vector<IR *> value;
     vector<IR *> key;
@@ -459,8 +459,8 @@ bool Mutator::fix_back(map<IR **, IR *> &m_save) {
   return true;
 }
 
-map<IR *, set<IR *>> Mutator::build_dependency_graph(
-    vector<IR *> &ordered_ir) {
+map<IR *, set<IR *>> Mutator::build_dependency_graph(IR *root,
+                                                     vector<IR *> &ordered_ir) {
   map<IR *, set<IR *>> graph;
   set<IDTYPE> type_to_fix;
   map<IR **, IR *> m_save;
@@ -482,54 +482,63 @@ map<IR *, set<IR *>> Mutator::build_dependency_graph(
     toptable_map(graph, ir_to_fix, v_top_table);
     for (auto ir : ir_to_fix) {
       auto idtype = ir->id_type_;
-      graph[ir].empty(); //TODO: fix warning?
+      graph[ir].clear();
       if (relationmap.find(idtype) == relationmap.end()) {
         continue;
       }
 
-      auto curptr = ir;
-      bool flag = false;
-      while (true) {
-        auto pptr = locate_parent(stmt, curptr);
-        if (pptr == NULL) break;
-        while (pptr->left_ == NULL || pptr->right_ == NULL) {
-          curptr = pptr;
-          pptr = locate_parent(stmt, curptr);
-          if (pptr == NULL) {
-            flag = true;
-            break;
+      IR *match_ir = find_closest_node(stmt, ir, relationmap[idtype]);
+
+      if (match_ir != NULL) {
+        if (ir->type_ == kColumnName && ir->left_ != NULL) {
+          if (v_top_table.size() > 0)
+            match_ir = pick_random_element(v_top_table);
+          graph[match_ir].insert(ir->left_);
+          if (ir->right_) {
+            graph[match_ir].insert(ir->right_);
+            ir->left_->id_type_ = id_table_name;
+            ir->right_->id_type_ = id_column_name;
+            ir->id_type_ = id_whatever;
           }
-        }
-        if (flag) break;
-
-        auto to_search_child = pptr->left_;
-        if (pptr->left_ == curptr) {
-          to_search_child = pptr->right_;
-        }
-
-        auto match_ir = search_mapped_ir(to_search_child, relationmap[idtype]);
-        if (match_ir != NULL) {
-          if (ir->type_ == kColumnName && ir->left_ != NULL) {
-            if (v_top_table.size() > 0)
-              match_ir = pick_random_element(v_top_table);
-            graph[match_ir].insert(ir->left_);
-            if (ir->right_) {
-              graph[match_ir].insert(ir->right_);
-              ir->left_->id_type_ = id_table_name;
-              ir->right_->id_type_ = id_column_name;
-              ir->id_type_ = id_whatever;
-            }
-          } else
-            graph[match_ir].insert(ir);
-          break;
-        }
-        curptr = pptr;
+        } else
+          graph[match_ir].insert(ir);
       }
     }
   }
 
   fix_back(m_save);
   return graph;
+}
+
+IR *Mutator::find_closest_node(IR *root, IR *current_ir, IDTYPE target_idtype) {
+  IR *curptr = current_ir;
+  while (true) {
+    IR *pptr = locate_parent(root, curptr);
+    if (pptr == NULL) break;
+
+    bool flag = false;
+    while (pptr->left_ == NULL || pptr->right_ == NULL) {
+      curptr = pptr;
+      pptr = locate_parent(root, curptr);
+      if (pptr == NULL) {
+        flag = true;
+        break;
+      }
+    }
+    if (flag) break;
+
+    IR *to_search_child = pptr->left_;
+    if (pptr->left_ == curptr) {
+      to_search_child = pptr->right_;
+    }
+
+    IR *match_ir = search_mapped_ir(to_search_child, target_idtype);
+    if (match_ir != NULL) {
+      return match_ir;
+    }
+    curptr = pptr;  // Move up to the parent and continue searching
+  }
+  return NULL;  // No matching node found
 }
 
 IR *Mutator::strategy_delete(IR *cur) {
@@ -823,13 +832,12 @@ string Mutator::fix(IR *root) {
 
   if (type_ == kCmdPragma) {
     string res = "PRAGMA ";
-    string &key = pick_random_element(cmds_);
+    const string &key = pick_random_element(cmds_);
     res += key;
 
     string value = pick_random_element(m_cmd_value_lib_[key]);
     if (!value.compare("_int_")) {
-      value = string("=") +
-              to_string(pick_random_element(value_library_));
+      value = string("=") + to_string(pick_random_element(value_library_));
     } else if (!value.compare("_empty_")) {
       value = "";
     } else if (!value.compare("_boolean_")) {
@@ -855,10 +863,8 @@ string Mutator::fix(IR *root) {
   if (type_ == kIntLiteral)
     return std::to_string(pick_random_element(value_library_));
   if (type_ == kFloatLiteral || type_ == kconst_float)
-    return std::to_string(
-        float(pick_random_element(value_library_)) + 0.1);
-  if (type_ == kconst_str)
-    return pick_random_element(string_library_);
+    return std::to_string(float(pick_random_element(value_library_)) + 0.1);
+  if (type_ == kconst_str) return pick_random_element(string_library_);
   ;
   if (type_ == kconst_int)
     return std::to_string(pick_random_element(value_library_));

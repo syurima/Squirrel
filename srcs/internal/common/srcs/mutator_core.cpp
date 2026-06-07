@@ -322,48 +322,42 @@ unsigned int Mutator::calc_node(IR *root) {
 }
 
 bool Mutator::fix(IR *root) {
-  map<IR **, IR *> m_save;
-  bool res = true;
-
-  auto stmts = split_to_stmt(root, m_save, split_stmt_types_);
-
-  if (stmts.size() > 8) {
-    connect_back(m_save);
+  // Helper lambda to restore saved fragments and signal failure.
+  auto restore_and_fail = [&](const map<IR **, IR *> &top,
+                              const map<IR **, IR *> &sub) -> bool {
+    connect_back(top);
+    if (!sub.empty()) connect_back(sub);
     return false;
-  }
+  };
 
-  scope_library_.clear();
+  map<IR **, IR *> top_save;
+  auto stmts = split_to_stmt(root, top_save, split_stmt_types_);
+  if (stmts.size() > 8) return restore_and_fail(top_save, {});
+
+  // Process each top‑level statement.
   for (auto &stmt : stmts) {
-    map<IR **, IR *> m_substmt_save;
-    auto substmts = split_to_stmt(stmt, m_substmt_save, split_substmt_types_);
+    map<IR **, IR *> sub_save;
+    auto substmts = split_to_stmt(stmt, sub_save, split_substmt_types_);
 
-    int stmt_num = substmts.size();
-    if (stmt_num > 4) {
-      connect_back(m_save);
-      connect_back(m_substmt_save);
-      return false;
-    }
+    if (substmts.size() > 4) return restore_and_fail(top_save, sub_save);
+
+    // Process each sub‑statement.
     for (auto &substmt : substmts) {
       scope_library_.clear();
-      int tmp_node_num = calc_node(substmt);
-      if ((stmt_num == 1 && tmp_node_num > 150) || tmp_node_num > 120) {
-        connect_back(m_save);
-        connect_back(m_substmt_save);
-        return false;
-      }
-      res = fix_one(substmt, scope_library_) && res;
+      int node_cnt = calc_node(substmt);
+      bool too_big = (substmts.size() == 1 && node_cnt > 150) || (node_cnt > 120);
+      if (too_big) return restore_and_fail(top_save, sub_save);
 
-      if (res == false) {
-        connect_back(m_save);
-        connect_back(m_substmt_save);
-        return false;
-      }
+      if (!fix_one(substmt)) return restore_and_fail(top_save, sub_save);
     }
-    res = connect_back(m_substmt_save) && res;
-  }
-  res = connect_back(m_save) && res;
 
-  return res;
+    // Re‑attach sub‑statement fragments after successful processing.
+    connect_back(sub_save);
+  }
+
+  // Re‑attach top‑level fragments and report success.
+  connect_back(top_save);
+  return true;
 }
 
 vector<IR *> Mutator::split_to_stmt(IR *root, map<IR **, IR *> &m_save,
@@ -407,33 +401,31 @@ bool Mutator::connect_back(map<IR **, IR *> &m_save) {
 
 static set<IR *> visited;
 
-bool Mutator::fix_one(IR *stmt_root,
-                      map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+bool Mutator::fix_one(IR *root) {
   visited.clear();
-  analyze_scope(stmt_root);
-  auto graph = build_graph(stmt_root, scope_library);
+  analyze_scope(root);
+  auto graph = build_dependency_graph(root);
 
   return fill_stmt_graph(graph);
 }
 
-void Mutator::analyze_scope(IR *stmt_root) {
-  if (stmt_root->left_) {
-    analyze_scope(stmt_root->left_);
+void Mutator::analyze_scope(IR *root) {
+  if (root->left_) {
+    analyze_scope(root->left_);
   }
-  if (stmt_root->right_) {
-    analyze_scope(stmt_root->right_);
+  if (root->right_) {
+    analyze_scope(root->right_);
   }
 
-  auto data_type = stmt_root->data_type_;
+  auto data_type = root->data_type_;
   if (data_type == kDataWhatever) return;
 
-  scope_library_[stmt_root->scope_][data_type].push_back(stmt_root);
+  scope_library_[root->scope_][data_type].push_back(root);
 }
 
-map<IR *, vector<IR *>> Mutator::build_graph(
-    IR *stmt_root, map<int, map<DATATYPE, vector<IR *>>> &scope_library) {
+map<IR *, vector<IR *>> Mutator::build_dependency_graph(IR *root) {
   map<IR *, vector<IR *>> res;
-  deque<IR *> bfs = {stmt_root};
+  deque<IR *> bfs = {root};
 
   while (!bfs.empty()) {
     auto node = bfs.front();
@@ -466,14 +458,15 @@ map<IR *, vector<IR *>> Mutator::build_graph(
       for (auto &target : target_data_type_map) {
         IR *pick_node = NULL;
         if (isMapToClosestOne(cur_data_flag)) {
-          pick_node = find_closest_node(stmt_root, node, target.first);
+          pick_node = find_closest_node(root, node, target.first);
           if (pick_node && pick_node->scope_ != cur_scope) {
             pick_node = NULL;
           }
         } else if (!isDefine(cur_data_flag) ||
-                   relationmap_[cur_data_type][target.first] != kRelationElement) {
-          if (!scope_library[cur_scope][target.first].empty())
-            pick_node = pick_random_element(scope_library[cur_scope][target.first]);
+                   relationmap_[cur_data_type][target.first] !=
+                       kRelationElement) {
+          pick_node =
+              pick_random_element(scope_library_[cur_scope][target.first]);
         }
         if (pick_node != NULL) res[pick_node].push_back(node);
       }
@@ -530,12 +523,6 @@ bool Mutator::remove_one_from_datalibrary(DATATYPE datatype,
   return remove_in_vector(key, data_library_[datatype]);
 }
 
-bool Mutator::replace_one_from_datalibrary(DATATYPE datatype,
-                                           const string &old_str,
-                                           const string &new_str) {
-  return replace_in_vector(old_str, new_str, data_library_[datatype]);
-}
-
 bool Mutator::remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
                                                   DATATYPE c_data_type,
                                                   const string &p_key) {
@@ -560,7 +547,7 @@ bool Mutator::replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
                                                    const string &p_key,
                                                    const string &old_c_value,
                                                    const string &new_c_value) {
-  replace_one_from_datalibrary(c_data_type, old_c_value, new_c_value);
+  replace_in_vector(old_c_value, new_c_value, data_library_[c_data_type]);
   replace_in_vector(old_c_value, new_c_value,
                     data_library_2d_[p_datatype][p_key][c_data_type]);
   return true;
@@ -669,7 +656,7 @@ bool Mutator::fill_one_pair(IR *parent, IR *child) {
 
       if (is_replace) {
         child->str_val_ = new_name;
-        replace_one_from_datalibrary(c_type, p_str, new_name);
+        replace_in_vector(p_str, new_name, data_library_[c_type]);
 
         if (has_key(data_library_2d_, p_type)) {
           if (has_key(data_library_2d_[p_type], p_str)) {
@@ -792,15 +779,15 @@ static IR *search_mapped_ir(IR *ir, DATATYPE type) {
   return NULL;
 }
 
-IR *Mutator::find_closest_node(IR *stmt_root, IR *node, DATATYPE type) {
+IR *Mutator::find_closest_node(IR *root, IR *node, DATATYPE type) {
   auto cur = node;
   while (true) {
-    auto parent = locate_parent(stmt_root, cur);
+    auto parent = locate_parent(root, cur);
     if (!parent) break;
     bool flag = false;
     while (parent->left_ == NULL || parent->right_ == NULL) {
       cur = parent;
-      parent = locate_parent(stmt_root, cur);
+      parent = locate_parent(root, cur);
       if (!parent) {
         flag = true;
         break;

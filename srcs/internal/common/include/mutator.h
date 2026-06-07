@@ -59,18 +59,17 @@ class Mutator {
                              set<IRTYPE> &split_set);  //?
   bool connect_back(map<IR **, IR *> &m_save);         //?
 
-  bool fix_one(IR *stmt_root,
-               map<int, map<DATATYPE, vector<IR *>>> &scope_library);  //?
+  bool fix_one(IR *root);  //?
 
-  void analyze_scope(IR *stmt_root);  //?
-  map<IR *, vector<IR *>> build_graph(
-      IR *stmt_root, map<int, map<DATATYPE, vector<IR *>>> &scope_library);  //?
-  bool fill_stmt_graph(map<IR *, vector<IR *>> &graph);                      //?
-  IR *find_closest_node(IR *stmt_root, IR *node, DATATYPE type);             //?
-  bool fill_one(IR *parent);                                                 //?
-  bool fill_one_pair(IR *parent, IR *child);                                 //?
-  bool fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir);          //?
-  bool validate(IR *&root);                                                  //?
+  void analyze_scope(IR *root);                                 //?
+  map<IR *, vector<IR *>> build_dependency_graph(IR *root);                //?
+  bool fill_stmt_graph(map<IR *, vector<IR *>> &graph);              //?
+  bool fill_stmt_graph_one(map<IR *, vector<IR *>> &graph, IR *ir);  //?
+
+  IR *find_closest_node(IR *root, IR *node, DATATYPE type);     //?
+  bool fill_one(IR *parent);                                         //?
+  bool fill_one_pair(IR *parent, IR *child);                         //?
+  bool validate(IR *&root);                                          //?
 
   unsigned int calc_node(IR *root);
   bool replace_one_value_from_datalibray_2d(DATATYPE p_datatype,
@@ -81,8 +80,6 @@ class Mutator {
   bool remove_one_pair_from_datalibrary_2d(DATATYPE p_datatype,
                                            DATATYPE c_data_type,
                                            const string &p_key);  //?
-  bool replace_one_from_datalibrary(DATATYPE datatype, const string &old_str,
-                                    const string &new_str);                //?
   bool remove_one_from_datalibrary(DATATYPE datatype, const string &key);  //?
   ~Mutator();
 

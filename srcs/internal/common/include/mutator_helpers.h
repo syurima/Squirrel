@@ -25,6 +25,7 @@ inline unsigned get_rand_int(unsigned range) {
 
 template <typename T>
 inline T pick_random_element(const std::vector<T> &values) {
+  if (values.empty()) return NULL;
   return values[get_rand_int(values.size())];
 }
 
