@@ -609,14 +609,18 @@ IR *Mutator::strategy_insert(IR *cur) {
   }
 
   // Fallback: Replace the entire node with a variant from the main library
-  auto &main_lib = ir_library_[res->type_];
-  if (main_lib.empty()) {
+  auto &lib = ir_library_[res->type_];
+  if (!lib.empty()) {
+    auto *blueprint = pick_random_element(lib);
+    if (blueprint->left_ && blueprint->right_) {
+      res->left_ = deep_copy(blueprint->left_);
+      res->right_ = deep_copy(blueprint->right_);
+      return res;
+    }
+  } else {
     deep_delete(res);
     return nullptr;
   }
-
-  deep_delete(res);
-  return deep_copy(pick_random_element(main_lib));
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
