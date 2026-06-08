@@ -26,14 +26,23 @@ CONTAINER_NAME="squirrel-${DBMS}-run-${RANDOM_ID//[^a-zA-Z0-9_.-]/-}"
 echo "Starting container: ${CONTAINER_NAME}"
 echo "Results will be copied to: ${OUTPUT_PATH}"
 
-# AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 potentialy to be removed in the future, but for now it prevents AFL from complaining
-set +e
-docker run -i \
-	--name "$CONTAINER_NAME" \
-	-e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
-	$DOCKER_IMAGE
-DOCKER_EXIT_CODE=$?
-set -e
+if [ "${2:-}" = "benchmark" ]; then
+  echo "Running mutator benchmark..."
+  docker run --rm -it \
+    --entrypoint bash \
+    -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    "$DOCKER_IMAGE" \
+    -c "cd /home/Squirrel && ./build/tests/mutator_benchmark UCB1"
+  exit 0
+else
+  set +e
+  docker run -i \
+    --name "$CONTAINER_NAME" \
+    -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    "$DOCKER_IMAGE"
+  DOCKER_EXIT_CODE=$?
+  set -e
+fi
 
 echo "Container stopped (exit code: ${DOCKER_EXIT_CODE}). Copying results..."
 if docker cp "${CONTAINER_NAME}:/tmp/fuzz/." "$OUTPUT_PATH"; then
