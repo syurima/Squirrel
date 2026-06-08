@@ -71,6 +71,13 @@ include_directories(${YAML_INCLUDE_DIRS})
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
 add_subdirectory(third_party/abseil-cpp)
+set(LLAMA_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TOOLS    OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_SERVER   OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_APP      OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_COMMON   OFF CACHE BOOL "" FORCE)
+add_subdirectory(llama.cpp)
 string(REPLACE " -w" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(AFLPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/AFLplusplus/include)
@@ -104,6 +111,10 @@ endforeach()
 
 if(MYSQL OR POSTGRESQL)
   add_executable(db_driver srcs/db_driver.cc)
+  target_include_directories(db_driver
+      PRIVATE
+          ${CMAKE_CURRENT_SOURCE_DIR}/llama.cpp/include
+  )
   target_link_libraries(db_driver ${YAML_CPP_LIBRARIES} all_client
                         absl::strings absl::str_format)
 
@@ -115,7 +126,14 @@ if(MYSQL OR POSTGRESQL)
   target_include_directories(all_client PUBLIC srcs/internal/client)
   target_link_libraries(all_client PUBLIC ${LINK_CLIENT})
   target_compile_definitions(all_client PRIVATE ${CLIENT_DEFINITION})
+  target_link_libraries(all_client PUBLIC llama)
+  set(MODELS_PATH "${CMAKE_SOURCE_DIR}/srcs/llm_fixer/models")
+  target_compile_definitions(all_client PUBLIC MODELS_PATH="${MODELS_PATH}")
 endif()
+
+# target_link_directories(all_client PRIVATE
+#     /path/to/llama/build/bin
+# )
 
 add_library(config_validator OBJECT srcs/utils/config_validate.cc)
 target_link_libraries(config_validator PRIVATE ${YAML_CPP_LIBRARIES}

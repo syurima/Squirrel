@@ -21,6 +21,10 @@
 #include "client.h"
 #include "config.h"
 #include "env.h"
+#include "llm_fixer/llama/_llama.cpp"
+#include "llm_fixer/factory/qwen_factory.cpp"
+#include "llm_fixer/threading/async_queue.cpp"
+#include "llm_fixer/threading/async_llm.cpp"
 #include "types.h"
 #include "yaml-cpp/yaml.h"
 
@@ -135,18 +139,24 @@ static void __afl_start_forkserver(void) {
   if (write(FORKSRV_FD + 1, tmp, 4) != 4) return;
 }
 
-static u32 __afl_next_testcase(u8 *buf, u32 max_len) {
+static u32 __afl_next_testcase(u8 *buf, u32 max_len, bool use_llm = false) {
   s32 status, res = 0xffffff;
+  // std::cerr << "\n\n<<<<< READING NEXT TEST CASE >>>>>\n\n";
+  std::string response = "";
+  if(use_llm && responses.try_pop(response)){
+    buf = reinterpret_cast<uint8_t*>(response.data());
+    status = response.size();
+    // std::cerr << "\n\n>>>>> READING QUEUE CASE <<<<<\n\n";
+  }else{
+    /* Wait for parent by reading from the pipe. Abort if read fails. */
+    if (read(FORKSRV_FD, &status, 4) != 4) return 0;
 
-  /* Wait for parent by reading from the pipe. Abort if read fails. */
-  if (read(FORKSRV_FD, &status, 4) != 4) return 0;
+    /* we have a testcase - read it */
+    status = read(0, buf, max_len);
 
-  /* we have a testcase - read it */
-  status = read(0, buf, max_len);
-
-  /* report that we are starting the target */
-  if (write(FORKSRV_FD + 1, &res, 4) != 4) return 0;
-
+    /* report that we are starting the target */
+    if (write(FORKSRV_FD + 1, &res, 4) != 4) return 0;
+  }
   return status;
 }
 
@@ -159,20 +169,7 @@ static void __afl_end_testcase(client::ExecutionStatus status) {
   if (write(FORKSRV_FD + 1, &waitpid_status, 4) != 4) exit(1);
 }
 
-int main(int argc, char *argv[]) {
-  const char *config_file_path = getenv(kConfigEnv);
-  if (!config_file_path) {
-    std::cerr << absl::StrFormat(
-        "You should set the enviroment variable %s to "
-        "the path of your config file.\n",
-        kConfigEnv);
-    exit(-1);
-  }
-  YAML::Node config = YAML::LoadFile(config_file_path);
-  std::string db_name = config["db"].as<std::string>();
-  std::string startup_cmd = config["startup_cmd"].as<std::string>();
-  client::DBClient *database = client::create_client(db_name, config);
-  database->initialize(config);
+int default_main(std::string& startup_cmd, client::DBClient *database) {
 
   /* This is were the testcase data is written into */
   constexpr size_t kMaxInputSize = 0x100000;
@@ -215,4 +212,86 @@ int main(int argc, char *argv[]) {
   assert(false && "Crash on parent?");
 
   return 0;
+}
+
+int llm_main(std::string& db_name, std::string& startup_cmd, client::DBClient *database) {
+  /* This is LLM thread initialization */
+  MODEL = new Qwen_Factory();
+  DIALECT = db_name;
+  std::thread llm_thread(llm_worker);
+
+  /* This is were the testcase data is written into */
+  constexpr size_t kMaxInputSize = 0x100000;
+  u8 *buf = (u8 *)malloc(
+      kMaxInputSize);  // this is the maximum size for a test case! set it!
+  s32 len;
+
+  __afl_map_size = MAP_SIZE;  // default is 65536
+
+  /* then we initialize the shared memory map and start the forkserver */
+
+  // Start the database server. In case that the driver
+  // is stopped and restarted, we should not start another server.
+  __afl_map_shm();
+  if (!database->check_alive()) {
+    system(startup_cmd.c_str());
+    sleep(5);
+  }
+
+  __afl_start_forkserver();
+
+  while ((len = __afl_next_testcase(buf, kMaxInputSize, true)) > 0) {
+    std::string query((const char *)buf, len);
+    database->prepare_env();
+
+    client::ExecutionStatus status = database->execute((const char *)buf, len);
+
+    __afl_area_ptr[0] = 1;
+    /* report the test case is done and wait for the next */
+
+    if (status == client::kSyntaxError || status == client::kSemanticError) {
+    // if (status != client::kNormal) {
+      // Make a request for llm to fix incorrect querry
+      requests.push(query);
+      // std::cerr << "\n\n===== PUSHING QUERY FOR LLM =====\n\n";
+    }
+
+    if (status == client::kServerCrash) {
+      while (!database->check_alive()) {
+        // Wait for the server to be restart.
+        sleep(5);
+      }
+    }
+    database->clean_up_env();
+    __afl_end_testcase(status);
+  }
+  requests.push("QUIT");
+  llm_thread.join();
+  delete MODEL;
+  assert(false && "Crash on parent?");
+
+  return 0;
+}
+
+int main(int argc, char *argv[]) {
+  const char *config_file_path = getenv(kConfigEnv);
+  if (!config_file_path) {
+    std::cerr << absl::StrFormat(
+        "You should set the enviroment variable %s to "
+        "the path of your config file.\n",
+        kConfigEnv);
+    exit(-1);
+  }
+  YAML::Node config = YAML::LoadFile(config_file_path);
+  std::string db_name = config["db"].as<std::string>();
+  std::string startup_cmd = config["startup_cmd"].as<std::string>();
+  client::DBClient *database = client::create_client(db_name, config);
+  database->initialize(config);
+
+  const char *config_llm = getenv(kUseLlmConfig);
+  if (!config_llm || std::stoi(config_llm) != 1) {
+    return default_main(startup_cmd, database);
+  } else {
+    return llm_main(db_name, startup_cmd, database);
+  }
 }
