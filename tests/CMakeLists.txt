@@ -30,3 +30,14 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(db_config_test)
 
+add_executable(mutator_benchmark
+    mutator_benchmark.cpp
+)
+
+target_link_libraries(mutator_benchmark
+    sqlite_impl
+)
+
+target_include_directories(mutator_benchmark PRIVATE
+    ../srcs/internal/sqlite/include
+)
