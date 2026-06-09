@@ -17,6 +17,19 @@
 2. Build the docker: `docker build -t xxx .`.
 3. Run: `docker run -it xxx`.
 
+If you prefer the helper scripts instead of running Docker commands manually (run in the root directory of the repo):
+
+1. `scripts/build_docker.sh` builds the database-specific image. The first argument is the database name. This **copies the local repo by default**, or you can run it with `--remote` to clone the repo inside the docker (currently links to the original Squirrel repo!!!).
+2. `scripts/run_docker.sh` starts fuzzing and copies the results into `output/`.
+3. `scripts/run_docker.sh` accepts an optional second argument for the seed. If omitted, it uses `42` by default.
+
+```bash
+./scripts/build_docker.sh mysql
+./scripts/build_docker.sh mysql --remote
+./scripts/run_docker.sh mysql 12345
+./scripts/run_docker.sh sqlite
+```
+
 ## Build Instruction (Run on localhost)
 
 ### Prerequisite

@@ -1,11 +1,13 @@
-from ubuntu:22.04
+FROM ubuntu:22.04
 LABEL maintainer="Squirrel"
 
-# common config
-RUN apt-get update
-RUN apt-get -y install make cmake build-essential vim sudo git \
-    clang libmysqlclient-dev ninja-build pkg-config clang-format \
-    libpq-dev libyaml-cpp-dev lld llvm bison python3-fire
+ENV DEBIAN_FRONTEND=noninteractive
+
+# common config (done in batches to help with caching)
+RUN apt-get -o Acquire::Retries=5 update
+RUN apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git
+RUN apt-get -o Acquire::Retries=5 -y install clang libmysqlclient-dev ninja-build pkg-config clang-format
+RUN apt-get -o Acquire::Retries=5 -y install libpq-dev libyaml-cpp-dev lld llvm bison python3-fire curl wget
 
 RUN mkdir -p /home && \
     groupadd dobigthing && \
@@ -20,24 +22,53 @@ RUN chmod +w /etc/sudoers && \
 USER dobigthing
 WORKDIR /home
 
-RUN git clone https://github.com/Dobigthing666/Squirrel.git && \
-    cd Squirrel && git submodule update --init && \
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Wno-dev -DMYSQL=ON && \
-    cmake --build build -j && \
-    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20
+ARG MYSQL_REF=mysql-8.4.9
 
-RUN git clone --depth=1 https://github.com/mysql/mysql-server.git mysql
-RUN sudo apt-get -y install apt-transport-https curl software-properties-common gnutls-dev
-RUN mkdir bld && cd bld/ && \
-    CC=/home/Squirrel/AFLplusplus/afl-clang-fast CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
-    cmake ../mysql/ -DDOWNLOAD_BOOST=1 -DWITH_BOOST=../boost \
+# Install packages for MySQL build
+RUN sudo apt-get -o Acquire::Retries=5 -y install apt-transport-https software-properties-common gnutls-dev
+    
+# Fetch and build boost 1.81 for MySQL (moved before MySQL source fetch to help with caching)
+RUN set -eux; \
+    for attempt in 1 2 3; do \
+        git config --global http.version HTTP/1.1 && \
+            git config --global submodule.fetchJobs 1 && \
+            git clone --depth 1 --single-branch --branch "${MYSQL_REF}" \
+            https://github.com/mysql/mysql-server.git /home/mysql && break; \
+        rm -rf /home/mysql; \
+        sleep $((attempt * 2)); \
+    done;
+
+ARG USE_REMOTE=0
+ARG BUILD_JOBS=20
+# Always copy the build context to a temp location so the Dockerfile can
+# either use the local context or perform a remote git clone depending on
+# the `USE_REMOTE` build-arg.
+COPY . /tmp/squirrel_context
+RUN if [ "$USE_REMOTE" = "1" ]; then \
+            git config --global http.version HTTP/1.1 && \
+            git config --global submodule.fetchJobs 1 && \
+            git clone --depth=1 https://github.com/s3team/Squirrel.git /home/Squirrel; \
+        else \
+            mkdir -p /home/Squirrel && cp -a /tmp/squirrel_context/. /home/Squirrel/; \
+            rm -rf /home/Squirrel/AFLplusplus; \
+        fi 
+RUN cd /home/Squirrel && for attempt in 1 2 3; do \
+        git submodule update --init --depth 1 --jobs 1 && break; \
+    done
+RUN cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMYSQL=ON && \
+    cmake --build build --parallel "${BUILD_JOBS}" && \
+    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j"${BUILD_JOBS}"
+
+RUN CC=/home/Squirrel/AFLplusplus/afl-clang-fast CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
+    cmake -S /home/mysql -B /home/bld -DDOWNLOAD_BOOST=1 -DWITH_BOOST=/home/boost \
     -DWITH_DEBUG=1 -DCPACK_MONOLITHIC_INSTALL=1 -DWITH_UNIT_TESTS=OFF
     
-RUN cd bld/ && make -j && sudo cmake --install . --prefix /usr/local/mysql/
+RUN cmake --build /home/bld --parallel "${BUILD_JOBS}" && sudo cmake --install /home/bld --prefix /usr/local/mysql/
 
 RUN sudo chown dobigthing:dobigthing /usr/local/mysql/ -R && \
     cd /usr/local/mysql/ && mkdir mysql-files && chmod 750 mysql-files && \
-    AFL_IGNORE_PROBLEMS=1 bin/mysqld --initialize-insecure --user=dobigthing && bin/mysql_ssl_rsa_setup
+    AFL_IGNORE_PROBLEMS=1 bin/mysqld --initialize-insecure --user=dobigthing && \
+    if [ -x bin/mysql_ssl_rsa_setup ]; then bin/mysql_ssl_rsa_setup; fi
 
 #ENTRYPOINT bash
 #ENTRYPOINT /usr/local/mysql/bin/mysqld --basedir=/usr/local/mysql \

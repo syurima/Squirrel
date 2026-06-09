@@ -85,17 +85,26 @@ set(AFLPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/AFLplusplus/include)
 include_directories(${AFLPP_DIR})
 
 foreach(dbms IN LISTS DBMS)
+  set(DBMS_COMMON_MUTATOR_SRCS)
+  if(NOT dbms STREQUAL "sqlite")
+    list(APPEND DBMS_COMMON_MUTATOR_SRCS
+         srcs/internal/common/srcs/mutator_core.cpp
+         srcs/internal/common/srcs/mutator_common.cpp)
+  endif()
+
   add_library(
     ${dbms}_impl OBJECT
     srcs/internal/${dbms}/${dbms}.cc
     srcs/internal/${dbms}/${dbms}.h
     srcs/internal/${dbms}/srcs/ast.cpp
+    ${DBMS_COMMON_MUTATOR_SRCS}
     srcs/internal/${dbms}/srcs/mutator.cpp
     srcs/internal/${dbms}/srcs/utils.cpp
     srcs/internal/${dbms}/parser/bison_parser.cpp
     srcs/internal/${dbms}/parser/flex_lexer.cpp)
   target_include_directories(${dbms}_impl PRIVATE srcs/internal/${dbms}/include
-                                                  srcs)
+                                                  srcs
+                                                  srcs/internal/common/include)
   target_compile_options(${dbms}_impl PRIVATE -fPIC)
   target_link_libraries(${dbms}_impl ${YAML_CPP_LIBRARIES} absl::strings
                         absl::str_format)

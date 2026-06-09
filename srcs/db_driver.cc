@@ -27,6 +27,8 @@
 #include "llm_fixer/threading/async_llm.cpp"
 #include "types.h"
 #include "yaml-cpp/yaml.h"
+#include "internal/common/include/mutator_helpers.h"
+#include <chrono>
 
 u8 *__afl_area_ptr;
 
@@ -169,7 +171,44 @@ static void __afl_end_testcase(client::ExecutionStatus status) {
   if (write(FORKSRV_FD + 1, &waitpid_status, 4) != 4) exit(1);
 }
 
+<<<<<<< HEAD
 int default_main(std::string& startup_cmd, client::DBClient *database) {
+=======
+int main(int argc, char *argv[]) {
+  const char *config_file_path = getenv(kConfigEnv);
+  if (!config_file_path) {
+    std::cerr << absl::StrFormat(
+        "You should set the enviroment variable %s to "
+        "the path of your config file.\n",
+        kConfigEnv);
+    exit(-1);
+  }
+  YAML::Node config = YAML::LoadFile(config_file_path);
+  // Seed RNG: prefer explicit seed in config, then SQUIRREL_SEED env, else time.
+  auto seed_from_time = []() {
+    return static_cast<uint32_t>(
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
+  };
+
+  try {
+    if (config["seed"]) {
+      uint32_t seed = config["seed"].as<uint32_t>();
+      mutator_common::seed_rng(seed);
+    } else if (getenv("SQUIRREL_SEED")) {
+      uint32_t seed = static_cast<uint32_t>(atoi(getenv("SQUIRREL_SEED")));
+      mutator_common::seed_rng(seed);
+    } else {
+      mutator_common::seed_rng(seed_from_time());
+    }
+  } catch (...) {
+    // If any issue with seed parsing, fall back to time-based seed.
+    mutator_common::seed_rng(seed_from_time());
+  }
+  std::string db_name = config["db"].as<std::string>();
+  std::string startup_cmd = config["startup_cmd"].as<std::string>();
+  client::DBClient *database = client::create_client(db_name, config);
+  database->initialize(config);
+>>>>>>> 8a82d6726f86b15e12cae25aea1f79ccf84dc7f6
 
   /* This is were the testcase data is written into */
   constexpr size_t kMaxInputSize = 0x100000;
@@ -185,7 +224,7 @@ int default_main(std::string& startup_cmd, client::DBClient *database) {
   // is stopped and restarted, we should not start another server.
   __afl_map_shm();
   if (!database->check_alive()) {
-    system(startup_cmd.c_str());
+    (void)system(startup_cmd.c_str());
     sleep(5);
   }
 

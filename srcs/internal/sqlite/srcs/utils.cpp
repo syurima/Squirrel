@@ -22,9 +22,9 @@ void print_v_ir(vector<IR *> &v_ir_collector) {
       if (ir->type_ == kconst_int)
         cout << ir->name_ << " = .int." << ir->int_val_ << endl;
       else if (ir->type_ == kconst_float)
-        cout << ir->name_ << " = .float." << ir->f_val_ << endl;
+        cout << ir->name_ << " = .float." << ir->float_val_ << endl;
       else if (ir->type_ == kBoolLiteral)
-        cout << ir->name_ << " = .bool." << ir->b_val_ << endl;
+        cout << ir->name_ << " = .bool." << ir->bool_val_ << endl;
       else
         cout << ir->name_ << " = .str." << ir->str_val_ << endl;
 
@@ -61,9 +61,9 @@ void print_ir(IR *ir) {
     if (ir->type_ == kconst_int)
       cout << ir->name_ << " = .int." << ir->int_val_ << endl;
     else if (ir->type_ == kconst_float)
-      cout << ir->name_ << " = .float." << ir->f_val_ << endl;
+      cout << ir->name_ << " = .float." << ir->float_val_ << endl;
     else if (ir->type_ == kBoolLiteral)
-      cout << ir->name_ << " = .bool." << ir->b_val_ << endl;
+      cout << ir->name_ << " = .bool." << ir->bool_val_ << endl;
     else
       cout << ir->name_ << " = .str." << ir->str_val_ << endl;
   } else if (ir->operand_num_ == 1) {
@@ -237,9 +237,9 @@ IR *deep_copy(const IR *root) {
     copy_res = new IR(
         root->type_,
         OP3(root->op_->prefix_, root->op_->middle_, root->op_->suffix_), left,
-        right, root->f_val_, root->str_val_, root->name_, root->mutated_times_);
+        right, root->float_val_, root->str_val_, root->name_, root->mutated_times_);
   else
-    copy_res = new IR(root->type_, NULL, left, right, root->f_val_,
+    copy_res = new IR(root->type_, NULL, left, right, root->float_val_,
                       root->str_val_, root->name_, root->mutated_times_);
 
   copy_res->id_type_ = root->id_type_;

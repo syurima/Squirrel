@@ -9,7 +9,13 @@
 
 #include "define.h"
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::set;
+using std::to_string;
+using std::cout;
+using std::endl;
 
 #define DECLARE_CLASS(v) class v;
 
@@ -24,7 +30,7 @@ static unsigned long g_id_counter;
 
 static inline void clear_id() { g_id_counter = 0; }
 
-static string gen_id_name() { return "v" + to_string(g_id_counter++); }
+static string gen_id_name() { return "v" + std::to_string(g_id_counter++); }
 
 enum CASEIDX { CASE0, CASE1, CASE2, CASE3, CASE4, CASE5, CASE6, CASE7, CASE8 };
 
@@ -100,7 +106,7 @@ class IR {
 
   IR(IRTYPE type, bool b_val)
       : type_(type),
-        b_val_(b_val),
+        bool_val_(b_val),
         left_(NULL),
         op_(NULL),
         right_(NULL),
@@ -122,7 +128,7 @@ class IR {
 
   IR(IRTYPE type, double f_val)
       : type_(type),
-        f_val_(f_val),
+        float_val_(f_val),
         left_(NULL),
         op_(NULL),
         right_(NULL),
@@ -140,14 +146,14 @@ class IR {
         operand_num_((!!right) + (!!left)),
         name_(name),
         str_val_(str_val),
-        f_val_(f_val),
+        float_val_(f_val),
         mutated_times_(mutated_times),
         id_type_(id_whatever) {}
 
   union {
-    unsigned long int_val_;
-    double f_val_;
-    bool b_val_;
+    unsigned long int_val_; //in sqlite, integer is 8 bytes - long size
+    double float_val_;
+    bool bool_val_;
   };
 
   IDTYPE id_type_;
@@ -879,14 +885,14 @@ class BoolLiteral : public Literal {
  public:
   virtual void deep_delete();
   virtual IR* translate(vector<IR*>& v_ir_collector);
-  bool b_val_;
+  bool bool_val_;
 };
 
 class NumLiteral : public Literal {
  public:
   virtual void deep_delete();
   virtual IR* translate(vector<IR*>& v_ir_collector);
-  double f_val_;
+  double float_val_;
   IntLiteral* int_literal_;
 };
 

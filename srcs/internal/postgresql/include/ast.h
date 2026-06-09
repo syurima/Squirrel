@@ -1,7 +1,9 @@
 #ifndef __AST_H__
 #define __AST_H__
+#include <map>
 #include <iostream>
 #include <string>
+#include <set>
 #include <vector>
 
 #include "define.h"

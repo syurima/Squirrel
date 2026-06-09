@@ -7769,7 +7769,7 @@ yyreduce:
 #line 2101 "bison_parser.y" /* yacc.c:1652  */
     {
       (yyval.bool_literal_t) = new BoolLiteral();
-      (yyval.bool_literal_t)->b_val_ = true;
+      (yyval.bool_literal_t)->bool_val_ = true;
     }
 #line 6372 "bison_parser.cpp" /* yacc.c:1652  */
     break;
@@ -7778,7 +7778,7 @@ yyreduce:
 #line 2102 "bison_parser.y" /* yacc.c:1652  */
     {
       (yyval.bool_literal_t) = new BoolLiteral();
-      (yyval.bool_literal_t)->b_val_ = false;
+      (yyval.bool_literal_t)->bool_val_ = false;
     }
 #line 6378 "bison_parser.cpp" /* yacc.c:1652  */
     break;
@@ -7788,7 +7788,7 @@ yyreduce:
     {
       (yyval.num_literal_t) = new NumLiteral();
       (yyval.num_literal_t)->sub_type_ = CASE0;
-      (yyval.num_literal_t)->f_val_ = (yyvsp[0].fval);
+      (yyval.num_literal_t)->float_val_ = (yyvsp[0].fval);
     }
 #line 6384 "bison_parser.cpp" /* yacc.c:1652  */
     break;

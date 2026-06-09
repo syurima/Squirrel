@@ -30,14 +30,13 @@ bool SQLiteDB::save_interesting_query(const std::string &query) {
     std::vector<IR *> ir_set;
     IR *ir = program->translate(ir_set);
     ir_set.clear();
-    string strip_sql = mutator_->extract_struct(ir);
-    // string strip_sql = ir->to_string();
+    mutator_->extract_struct(ir);
+    string strip_sql = ir->to_string();
     auto p_strip_sql = parser(strip_sql);
     if (p_strip_sql) {
       auto root_ir = p_strip_sql->translate(ir_set);
       p_strip_sql->deep_delete();
-      // mutator_->add_ir_to_library(root_ir);
-      mutator_->add_to_library(root_ir);
+      mutator_->add_ir_to_library(root_ir);
       deep_delete(root_ir);
     }
     return true;
