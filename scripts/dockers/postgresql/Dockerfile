@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get -o Acquire::Retries=5 update
 RUN apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git \
     clang ninja-build pkg-config clang-format libpq-dev llvm libyaml-cpp-dev zlib1g-dev \
-    libreadline8 libreadline-dev bison flex python3-fire
+    libreadline8 libreadline-dev bison flex python3-fire curl wget
 
 RUN mkdir -p /home && \
     groupadd dobigthing && \
@@ -41,6 +41,9 @@ RUN cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPOSTGR
     cmake --build build -j && \
     cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20 \
     cd ../llama.cpp/ && cmake -B build && cmake --build build --config Release
+
+RUN cd /home/Squirrel/srcs/llm_fixer/models && wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+    "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
 RUN cd /home/Squirrel && for attempt in 1 2 3; do \
         git config --global http.version HTTP/1.1 && \
