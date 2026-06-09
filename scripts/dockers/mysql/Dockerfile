@@ -1,6 +1,7 @@
 FROM ubuntu:22.04
 LABEL maintainer="Squirrel"
 
+ENV USE_LLM=1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # common config (done in batches to help with caching)
@@ -57,7 +58,11 @@ RUN cd /home/Squirrel && for attempt in 1 2 3; do \
     done
 RUN cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMYSQL=ON && \
     cmake --build build --parallel "${BUILD_JOBS}" && \
-    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j"${BUILD_JOBS}"
+    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j"${BUILD_JOBS}" && \
+    cd ../llama.cpp/ && cmake -B build && cmake --build build --config Release
+
+RUN cd /home/Squirrel/srcs/llm_fixer/models && wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+    "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
 RUN CC=/home/Squirrel/AFLplusplus/afl-clang-fast CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
     cmake -S /home/mysql -B /home/bld -DDOWNLOAD_BOOST=1 -DWITH_BOOST=/home/boost \

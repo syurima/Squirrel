@@ -1,13 +1,14 @@
 FROM ubuntu:22.04
 LABEL maintainer="Squirrel"
 
+ENV USE_LLM=1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # common config
 RUN apt-get -o Acquire::Retries=5 update
 RUN apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3 \
     clang ninja-build pkg-config clang-format \
-    libpq-dev libyaml-cpp-dev lld llvm python3-fire
+    libpq-dev libyaml-cpp-dev lld llvm python3-fire curl wget
 
 RUN mkdir -p /home && \
     groupadd dobigthing && \
@@ -40,7 +41,11 @@ RUN if [ "$USE_REMOTE" = "1" ]; then \
         fi && \
             cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON && \
             cmake --build build -j && \
-            cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20
+            cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20 && \
+            cd ../llama.cpp/ && cmake -B build && cmake --build build --config Release
+
+RUN cd /home/Squirrel/srcs/llm_fixer/models && wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+    "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
 ARG CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 

@@ -39,7 +39,7 @@ RUN cd /home/Squirrel && for attempt in 1 2 3; do \
     done
 RUN cd /home/Squirrel && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DPOSTGRESQL=ON && \
     cmake --build build -j && \
-    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20 \
+    cd AFLplusplus/ && LLVM_CONFIG=llvm-config-14 make -j20 && \
     cd ../llama.cpp/ && cmake -B build && cmake --build build --config Release
 
 RUN cd /home/Squirrel/srcs/llm_fixer/models && wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
