@@ -6,6 +6,10 @@ on:
         description: 'Database engine to build the image for (sqlite, mysql, postgresql, mariadb)'
         required: true
         default: 'sqlite'
+      use_remote:
+        description: 'Whether to use the remote GitHub repository for cloning (1 for yes, 0 for no)'
+        required: true
+        default: '1'
 jobs:
   build-apptainer-image:
     runs-on: ubuntu-latest
@@ -23,6 +27,7 @@ jobs:
           command_timeout: '60m'
           script: |
             DBMS="${{ github.event.inputs.dbms }}"
+            USE_REMOTE="${{ github.event.inputs.use_remote }}"
             dirName=${{ github.actor }}-$DBMS
 
             # Clean up existing directory
@@ -35,7 +40,7 @@ jobs:
 
             # Run Slurm Build Job
             echo "Building Apptainer image..."
-            JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" "$USE_REMOTE" | awk '{print $4}')
             SLURM_EXIT_CODE=$?          # <-- capture the exit status of sbatch (i.e. the job)
 
             # Print the job output

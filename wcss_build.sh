@@ -11,10 +11,7 @@ set -euo pipefail
 # This script is used in the GitHub Actions workflow to build the project container in WCSS.
 
 DBMS=${1:-sqlite}
-# USE_REMOTE=0
-# if [[ ${2:-} == "--remote" ]]; then
-#   USE_REMOTE=1
-# fi
+export USE_REMOTE=${2:-1}
 
 APPTAINER_DEFINITION="scripts/apptainers/${DBMS}.def"
 APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}.sif"
