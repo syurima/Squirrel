@@ -24,9 +24,8 @@ From: ubuntu:22.04
     CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 
     # Common config & package installation
-    apt -o Acquire::Retries=5 update
-    apt -o Acquire::Retries=5 install -y fakeroot
-    apt -o Acquire::Retries=5 -y install \
+    apt-get -o APT::Sandbox::User=root -o Acquire::Retries=5 update
+    apt-get -o APT::Sandbox::User=root -o Acquire::Retries=5 -y install \
         make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3 \
         clang ninja-build pkg-config clang-format \
         libpq-dev libyaml-cpp-dev lld llvm python3-fire curl wget
@@ -95,6 +94,7 @@ From: ubuntu:22.04
 
     # Clean up temp build context to save image space
     rm -rf /tmp/squirrel_context
+    rm -rf /var/lib/apt/lists/*
 
 %runscript
     cd /home/Squirrel/scripts/utils
