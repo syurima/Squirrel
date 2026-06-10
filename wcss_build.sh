@@ -11,6 +11,19 @@
 DBMS=${1:-sqlite}
 export USE_REMOTE=${2:-1}
 
+# Pull the base image from Docker Hub and convert it to SIF format for Apptainer 
+# (need this for fakeroot to work)
+DOCKER_IMAGE="docker://syurima/ubuntu-fakeroot:latest"
+BASE_SIF="/tmp/ubuntu-fakeroot.sif"
+
+echo "=== Pulling Docker image ${DOCKER_IMAGE} into ${BASE_SIF} ==="
+apptainer pull ${BASE_SIF} ${DOCKER_IMAGE}
+if [[ $? -ne 0 ]]; then
+    echo "Failed to pull Docker image"
+    exit 1
+fi
+
+# Build the actual container image
 APPTAINER_DEFINITION="scripts/apptainers/${DBMS}.def"
 APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}.sif"
 
