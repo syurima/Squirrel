@@ -1,0 +1,42 @@
+name: Build Apptainer Image on WCSS
+on:
+  workflow_dispatch:
+    inputs:
+      dbms:
+        description: 'Database engine to build the image for (sqlite, mysql, postgresql, mariadb)'
+        required: true
+        default: 'sqlite'
+jobs:
+  build-apptainer-image:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run SSH command
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          username: ${{ secrets.USERNAME }}
+          command_timeout: '60m'
+          script: |
+            DBMS="${{ github.event.inputs.dbms }}"
+            dirName=${{ github.actor }}/$DBMS
+
+            # Clean up existing directory
+            rm -rf ~/"$dirName"
+
+            # Clone repository
+            git clone -b ${{ github.ref_name }} git@github.com:syurima/Squirrel.git
+            mv ~/Squirrel ~/"$dirName"
+            cd ~/"$dirName"
+
+            # Run Slurm Build Job
+            echo "Building Apptainer image..."
+            JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" | awk '{print $4}')
+
+            # Print the job output
+            echo "Job output:"
+            cat slurm-$JOB_ID.out

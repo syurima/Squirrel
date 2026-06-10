@@ -1,0 +1,45 @@
+name: Run Fuzzing Job on WCSS
+on:
+  workflow_dispatch:
+    inputs:
+      dbms:
+        description: 'Database engine to run the fuzzing job for'
+        required: true
+        default: 'sqlite'
+      max_runtime:
+        description: 'Maximum runtime for the Slurm job (format HH:MM:SS)'
+        required: true
+        default: '00:20:00'
+jobs:
+  run-fuzzing:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run SSH command
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          username: ${{ secrets.USERNAME }}
+          command_timeout: '60m'
+          script: |
+            DBMS="${{ github.event.inputs.dbms }}"
+            MAX_RUNTIME="${{ github.event.inputs.max_runtime }}"
+
+            dirName=${{ github.actor }}/$DBMS
+
+            cd ~/"$dirName"
+            
+            # !! YOU NEED TO RUN THE BUILD SCRIPT BEFORE THIS ONE TO BUILD THE APPTAINER IMAGE. 
+            # This script assumes that the image is already built and available in the current directory.
+
+            # Submit job – pass both DBMS and max runtime
+            echo "Running Slurm job..."
+            JOB_ID=$(/opt/slurm/current/bin/sbatch --wait wcss_run.sh "$DBMS" "$MAX_RUNTIME" | awk '{print $4}')
+
+            # Print the job output
+            echo "Job output:"
+            cat slurm-$JOB_ID.out
