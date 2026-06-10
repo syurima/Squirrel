@@ -1,4 +1,4 @@
-name: Run Fuzzing Job on WCSS
+name: WCSS - Run Fuzzing Job
 on:
   workflow_dispatch:
     inputs:
@@ -29,7 +29,7 @@ jobs:
             DBMS="${{ github.event.inputs.dbms }}"
             MAX_RUNTIME="${{ github.event.inputs.max_runtime }}"
 
-            dirName=${{ github.actor }}/$DBMS
+            dirName=${{ github.actor }}-$DBMS
 
             cd ~/"$dirName"
             
@@ -39,7 +39,16 @@ jobs:
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
             JOB_ID=$(/opt/slurm/current/bin/sbatch --wait wcss_run.sh "$DBMS" "$MAX_RUNTIME" | awk '{print $4}')
+            SLURM_EXIT_CODE=$?
 
             # Print the job output
             echo "Job output:"
             cat slurm-$JOB_ID.out
+
+            # Fail the step if the Slurm job failed
+            if [[ $SLURM_EXIT_CODE -ne 0 ]]; then
+              echo "Slurm job failed with exit code $SLURM_EXIT_CODE."
+              exit $SLURM_EXIT_CODE
+            fi
+
+            echo "Slurm job finished successfully."
