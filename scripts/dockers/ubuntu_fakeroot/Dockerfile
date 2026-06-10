@@ -1,12 +1,12 @@
 # -------------------------------------------------
-# Dockerfile – Ubuntu 22.04 with fakeroot
+# Dockerfile – Ubuntu 22.04 with fakeroot and common development tools for building Squirrel in WCSS
 # -------------------------------------------------
 FROM ubuntu:22.04
 
 # Set non‑interactive mode for apt
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install fakeroot and a few helpful tools
+# Install fakeroot and the common development tools
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         fakeroot \
@@ -16,19 +16,20 @@ RUN apt-get update && \
         gnupg \
         build-essential \
         cmake \
-        git && \
+        make \
+        vim \
+        sudo \
+        git \
+        clang \
+        clang-format \
+        ninja-build \
+        pkg-config \
+        libpq-dev \
+        libyaml-cpp-dev \
+        llvm \
+        lld \
+        python3-fire && \
     rm -rf /var/lib/apt/lists/*
-
-# Create a regular user (optional but recommended)
-ARG USERNAME=builder
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -g ${GID} ${USERNAME} && \
-    useradd -m -u ${UID} -g ${GID} -s /bin/bash ${USERNAME}
-
-# Switch to the non‑root user
-USER ${USERNAME}
-WORKDIR /home/${USERNAME}
 
 # -----------------------------------------------------------------
 # Example usage (run from host):
