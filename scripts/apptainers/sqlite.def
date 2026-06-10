@@ -15,13 +15,13 @@ From: /tmp/ubuntu-fakeroot.sif
     # . /tmp/squirrel_context
 
 %post
-    # export USE_LLM=1
-    # export DEBIAN_FRONTEND=noninteractive
+    export USE_LLM=1
+    export DEBIAN_FRONTEND=noninteractive
     
     # Apptainer equivalent of ARG  
     # remote mode is now the default
     USE_REMOTE=1  
-    CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
+    export CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 
     # Ensure /home and model directories exist
     mkdir -p /home
@@ -71,8 +71,8 @@ From: /tmp/ubuntu-fakeroot.sif
     cd bld
 
     # Build SQLite using AFL compilers
-    # export CC=/home/Squirrel/AFLplusplus/afl-cc
-    # export CXX=/home/Squirrel/AFLplusplus/afl-c++
+    export CC=/home/Squirrel/AFLplusplus/afl-cc
+    export CXX=/home/Squirrel/AFLplusplus/afl-c++
     
     ../configure
     make -j
