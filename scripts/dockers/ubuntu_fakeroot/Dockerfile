@@ -28,8 +28,14 @@ RUN apt-get update && \
         libyaml-cpp-dev \
         llvm \
         lld \
-        python3-fire && \
-    rm -rf /var/lib/apt/lists/*
+        python3-fire
+    
+# This is for sqlite (try to remove later)
+RUN apt-get -o Acquire::Retries=5 -y install \
+        tcl8.6 tcl8.6-tdbc-sqlite3
+    
+RUN  rm -rf /var/lib/apt/lists*
+
 
 # -----------------------------------------------------------------
 # Example usage (run from host):
