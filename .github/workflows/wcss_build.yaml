@@ -42,15 +42,16 @@ jobs:
             echo "Building Apptainer image..."
             JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" "$USE_REMOTE" | awk '{print $4}')
             SLURM_EXIT_CODE=$?          # <-- capture the exit status of sbatch (i.e. the job)
+            BUILD_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 
             # Print the job output
             echo "Job output:"
             cat slurm-$JOB_ID.out
 
             # Fail the step if the Slurm job failed
-            if [[ $SLURM_EXIT_CODE -ne 0 ]]; then
-              echo "Slurm job failed with exit code $SLURM_EXIT_CODE."
-              exit $SLURM_EXIT_CODE
+            if [[ $SLURM_EXIT_CODE -ne 0 || $BUILD_EXIT_STATUS -ne 0 ]]; then
+              echo "Slurm job failed."
+              exit 1
             fi
 
             echo "Slurm job finished successfully with exit code $SLURM_EXIT_CODE."
