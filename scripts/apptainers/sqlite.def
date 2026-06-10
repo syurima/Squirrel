@@ -24,8 +24,10 @@ From: ubuntu:22.04
     CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 
     # Common config & package installation
-    apt-get -o Acquire::Retries=5 update
-    apt-get -o Acquire::Retries=5 -y install make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3 \
+    apt -o Acquire::Retries=5 update
+    apt -o Acquire::Retries=5 install -y fakeroot
+    apt -o Acquire::Retries=5 -y install \
+        make cmake build-essential vim sudo git tcl8.6 tcl8.6-tdbc-sqlite3 \
         clang ninja-build pkg-config clang-format \
         libpq-dev libyaml-cpp-dev lld llvm python3-fire curl wget
 

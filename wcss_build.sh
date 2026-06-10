@@ -6,8 +6,6 @@
 #SBATCH --job-name=squirrel_${DBMS}_build     # Nazwa zadania
 #SBATCH -p lem-cpu-short                      # Nazwa partycji
 
-set -euo pipefail
-
 # This script is used in the GitHub Actions workflow to build the project container in WCSS.
 
 DBMS=${1:-sqlite}
@@ -17,7 +15,7 @@ APPTAINER_DEFINITION="scripts/apptainers/${DBMS}.def"
 APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}.sif"
 
 echo "=== Building Apptainer image ${APPTAINER_IMAGE} ==="
-apptainer build $APPTAINER_IMAGE $APPTAINER_DEFINITION
+apptainer build --ignore-fakeroot-command $APPTAINER_IMAGE $APPTAINER_DEFINITION
 
 if [[ ! -f "$APPTAINER_IMAGE" ]]; then
   echo "Failed to build Apptainer image. Expected image not found at $APPTAINER_IMAGE"

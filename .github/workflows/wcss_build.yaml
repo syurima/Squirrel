@@ -53,4 +53,4 @@ jobs:
               exit $SLURM_EXIT_CODE
             fi
 
-            echo "Slurm job finished successfully."
+            echo "Slurm job finished successfully with exit code $SLURM_EXIT_CODE."
