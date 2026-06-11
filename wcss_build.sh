@@ -10,9 +10,10 @@
 
 DBMS=${1:-sqlite}
 export USE_OLD_SQUIRREL=${2:-1}
-
+# ----------------------------------------------------
 # Pull the base image from Docker Hub and convert it to SIF format for Apptainer 
 # (need this for fakeroot to work)
+# ----------------------------------------------------
 DOCKER_IMAGE="docker://syurima/ubuntu-fakeroot:latest"
 BASE_SIF="/tmp/ubuntu-fakeroot.sif"
 
@@ -23,14 +24,15 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
+# ----------------------------------------------------
 # Build the actual container image
+# ----------------------------------------------------
 APPTAINER_DEFINITION="scripts/apptainers/${DBMS}.def"
 APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}_${USE_OLD_SQUIRREL}.sif"
 
 echo "=== Building Apptainer image ${APPTAINER_IMAGE} ==="
 apptainer build \
     --ignore-fakeroot-command \
-    --env USE_OLD_SQUIRREL="${USE_OLD_SQUIRREL}" \
     "$APPTAINER_IMAGE" "$APPTAINER_DEFINITION"
 
 if [[ ! -f "$APPTAINER_IMAGE" ]]; then
@@ -39,3 +41,21 @@ if [[ ! -f "$APPTAINER_IMAGE" ]]; then
 fi
 
 echo "=== Build finished ==="
+
+
+# -----------------------------------------------------------------
+# Copy the built image and the run‑script to the permanent location
+# -----------------------------------------------------------------
+# Define where we want to store the artifacts
+IMAGES_DIR="$HOME/images"
+mkdir -p "$IMAGES_DIR"
+
+# Copy the Apptainer image
+echo "=== Copying image to ${IMAGES_DIR} ==="
+cp "$APPTAINER_IMAGE" "$IMAGES_DIR/"
+
+# Copy the run‑script
+echo "=== Copying wcss_run.sh to ${IMAGES_DIR} ==="
+cp "${PWD}/wcss_run.sh" "$IMAGES_DIR/"
+
+echo "=== Image and script copied successfully ==="

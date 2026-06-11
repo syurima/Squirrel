@@ -42,7 +42,7 @@ jobs:
 
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
-            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" ~/images/wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" | awk '{print $4}')
             SLURM_EXIT_CODE=$?
             RUN_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 

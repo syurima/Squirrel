@@ -29,15 +29,16 @@ jobs:
             DBMS="${{ github.event.inputs.dbms }}"
             USE_OLD_SQUIRREL="${{ github.event.inputs.use_old_squirrel }}"
             
-            dirName=${{ github.actor }}-$DBMS
+            IMAGES_DIR="~/images"
+            tempDirName=${{ github.actor }}-$DBMS-build-$USE_OLD_SQUIRREL
 
             # Clean up existing directory
-            rm -rf ~/"$dirName"
+            rm -rf ~/"$tempDirName"
 
             # Clone repository
             git clone -b ${{ github.ref_name }} https://github.com/syurima/Squirrel.git
-            mv ~/Squirrel ~/"$dirName"
-            cd ~/"$dirName"
+            mv ~/Squirrel ~/"$tempDirName"
+            cd ~/"$tempDirName"
 
             # Run Slurm Build Job
             echo "Building Apptainer image..."
@@ -56,3 +57,9 @@ jobs:
             fi
 
             echo "Slurm job finished successfully"
+
+            # Clean up the temporary directory
+            cd ..
+            rm -rf ~/"$tempDirName"
+
+            echo "Cleaned up temporary directory."
