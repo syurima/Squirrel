@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -N1                                   # Liczba węzłów
-#SBATCH -c5                                   # Liczba rdzeni cpu  
+#SBATCH -c8                                   # Liczba rdzeni cpu  
 #SBATCH --mem=16gb                            # Ilość pamięci RAM
 #SBATCH --job-name=squirrel_${DBMS}_run       # Nazwa zadania
 #SBATCH -p lem-gpu-short                      # Nazwa partycji
@@ -19,5 +19,9 @@ fi
 
 echo "=== Running fuzzing job with Apptainer image ${APPTAINER_IMAGE} ==="
 # --nv is needed to enable GPU support in the container. don't delete it!!
-apptainer run --nv $APPTAINER_IMAGE
+# We also set AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 to avoid issues with AFL++ when running in a non-privileged container environment.
+apptainer run \
+    --nv \
+    -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    "$APPTAINER_IMAGE"
 echo "=== Fuzzing job finished ==="
