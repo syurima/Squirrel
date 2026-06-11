@@ -18,33 +18,25 @@ From: /tmp/ubuntu-fakeroot.sif
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
     
-    # Apptainer equivalent of ARG  
-    # remote mode is now the default
-    USE_REMOTE=1  
     export CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
 
     # Ensure /home and model directories exist
     mkdir -p /home
     mkdir -p /models
 
-    # Build Squirrel context
-    if [ "$USE_REMOTE" = "1" ]; then
-        git config --global http.version HTTP/1.1
-        git config --global submodule.fetchJobs 1
+    git config --global http.version HTTP/1.1
+    git config --global submodule.fetchJobs 1
+        
+    # Build Squirrel context (old is the original Squirrel repo, new is the one with our changes)
+    if [ "$USE_OLD_SQUIRREL" = "1" ]; then
+        git clone --depth=1 https://github.com/s3team/Squirrel.git /home/Squirrel
+    else
         git clone --depth=1 https://github.com/syurima/Squirrel.git /home/Squirrel
-        cd /home/Squirrel
-        for attempt in 1 2 3; do
-            git submodule update --init --recursive --depth 1 --jobs 1 && break
-        done
-    # else
-    #     # ----- LOCAL BUILD CONTEXT (disabled) -----
-    #     # mkdir -p /home/Squirrel
-    #     # cp -a /tmp/squirrel_context/. /home/Squirrel/
-    #     # rm -rf /home/Squirrel/AFLplusplus
-    #     # cd /home/Squirrel
-    #     # git submodule update --init --recursive --depth 1 --jobs 1
-    #     # -----------------------------------------
     fi
+    cd /home/Squirrel
+    for attempt in 1 2 3; do
+        git submodule update --init --recursive --depth 1 --jobs 1 && break
+    done
 
     # Compile Squirrel, AFLplusplus, and llama.cpp
     cd /home/Squirrel

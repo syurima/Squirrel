@@ -2,15 +2,16 @@
 #SBATCH -N1                                   # Liczba węzłów
 #SBATCH -c8                                   # Liczba rdzeni cpu  
 #SBATCH --mem=16gb                            # Ilość pamięci RAM
-#SBATCH --job-name=squirrel_${DBMS}_run       # Nazwa zadania
+#SBATCH --job-name=squirrel_${DBMS}_${USE_OLD_SQUIRREL}_run       # Nazwa zadania
 #SBATCH -p lem-gpu-short                      # Nazwa partycji
 #SBATCH --gres=gpu:hopper:1                   # Potrzebne zasoby GPU
 
 # This script is used in the GitHub Actions workflow to run the fuzzing job on WCSS.
 
 DBMS=${1:-sqlite}
+export USE_OLD_SQUIRREL=${2:-1}
 
-APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}.sif"
+APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}_${USE_OLD_SQUIRREL}.sif"
 
 if [[ ! -f "$APPTAINER_IMAGE" ]]; then
   echo "Image $APPTAINER_IMAGE not found. You need to run the build job first to create the image."
@@ -23,5 +24,6 @@ echo "=== Running fuzzing job with Apptainer image ${APPTAINER_IMAGE} ==="
 apptainer run \
     --nv \
     -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    -e USE_OLD_SQUIRREL="${USE_OLD_SQUIRREL}" \
     "$APPTAINER_IMAGE"
 echo "=== Fuzzing job finished ==="

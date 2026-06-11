@@ -10,6 +10,10 @@ on:
         description: 'Maximum runtime for the Slurm job (format HH:MM:SS)'
         required: true
         default: '0:05:00'
+      use_old_squirrel:
+        description: 'Whether to use the image from the old Squirrel repository (1 for old, 0 for new)'
+        required: true
+        default: '0'
 jobs:
   run-fuzzing:
     runs-on: ubuntu-latest
@@ -28,7 +32,7 @@ jobs:
           script: |
             DBMS="${{ github.event.inputs.dbms }}"
             MAX_RUNTIME="${{ github.event.inputs.max_runtime }}"
-
+            USE_OLD_SQUIRREL="${{ github.event.inputs.use_old_squirrel }}"
             dirName=${{ github.actor }}-$DBMS
 
             cd ~/"$dirName"
@@ -38,7 +42,7 @@ jobs:
 
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
-            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" wcss_run.sh "$DBMS" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" | awk '{print $4}')
             SLURM_EXIT_CODE=$?
             RUN_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 

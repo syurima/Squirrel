@@ -3,13 +3,13 @@
 #SBATCH -c5                                   # Liczba rdzeni cpu  
 #SBATCH --mem=16gb                            # Ilość pamięci RAM
 #SBATCH --time=3:00:00                        # Limit czasowy na zadanie
-#SBATCH --job-name=squirrel_${DBMS}_build     # Nazwa zadania
+#SBATCH --job-name=squirrel_${DBMS}_${USE_OLD_SQUIRREL}_build       # Nazwa zadania
 #SBATCH -p lem-cpu-short                      # Nazwa partycji
 
 # This script is used in the GitHub Actions workflow to build the project container in WCSS.
 
 DBMS=${1:-sqlite}
-export USE_REMOTE=${2:-1}
+export USE_OLD_SQUIRREL=${2:-1}
 
 # Pull the base image from Docker Hub and convert it to SIF format for Apptainer 
 # (need this for fakeroot to work)
@@ -25,10 +25,13 @@ fi
 
 # Build the actual container image
 APPTAINER_DEFINITION="scripts/apptainers/${DBMS}.def"
-APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}.sif"
+APPTAINER_IMAGE="${PWD}/squirrel-${DBMS}_${USE_OLD_SQUIRREL}.sif"
 
 echo "=== Building Apptainer image ${APPTAINER_IMAGE} ==="
-apptainer build --ignore-fakeroot-command $APPTAINER_IMAGE $APPTAINER_DEFINITION
+apptainer build \
+    --ignore-fakeroot-command \
+    --env USE_OLD_SQUIRREL="${USE_OLD_SQUIRREL}" \
+    "$APPTAINER_IMAGE" "$APPTAINER_DEFINITION"
 
 if [[ ! -f "$APPTAINER_IMAGE" ]]; then
   echo "Failed to build Apptainer image. Expected image not found at $APPTAINER_IMAGE"

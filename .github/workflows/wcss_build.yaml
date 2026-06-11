@@ -6,10 +6,10 @@ on:
         description: 'Database engine to build the image for (sqlite, mysql, postgresql, mariadb)'
         required: true
         default: 'sqlite'
-      use_remote:
-        description: 'Whether to use the remote GitHub repository for cloning (1 for yes, 0 for no)'
+      use_old_squirrel:
+        description: 'Whether to use the old Squirrel repository for building (1 for old, 0 for new)'
         required: true
-        default: '1'
+        default: '0'
 jobs:
   build-apptainer-image:
     runs-on: ubuntu-latest
@@ -27,7 +27,7 @@ jobs:
           command_timeout: '60m'
           script: |
             DBMS="${{ github.event.inputs.dbms }}"
-            USE_REMOTE="${{ github.event.inputs.use_remote }}"
+            USE_OLD_SQUIRREL="${{ github.event.inputs.use_old_squirrel }}"
             
             dirName=${{ github.actor }}-$DBMS
 
@@ -41,7 +41,7 @@ jobs:
 
             # Run Slurm Build Job
             echo "Building Apptainer image..."
-            JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" "$USE_REMOTE" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait wcss_build.sh "$DBMS" "$USE_OLD_SQUIRREL" | awk '{print $4}')
             SLURM_EXIT_CODE=$?          # <-- capture the exit status of sbatch (i.e. the job)
             BUILD_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 
