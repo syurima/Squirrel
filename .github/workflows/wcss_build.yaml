@@ -28,6 +28,7 @@ jobs:
           script: |
             DBMS="${{ github.event.inputs.dbms }}"
             USE_REMOTE="${{ github.event.inputs.use_remote }}"
+            
             dirName=${{ github.actor }}-$DBMS
 
             # Clean up existing directory
@@ -54,4 +55,4 @@ jobs:
               exit 1
             fi
 
-            echo "Slurm job finished successfully with exit code $SLURM_EXIT_CODE."
+            echo "Slurm job finished successfully"

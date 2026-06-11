@@ -9,7 +9,7 @@ on:
       max_runtime:
         description: 'Maximum runtime for the Slurm job (format HH:MM:SS)'
         required: true
-        default: '00:20:00'
+        default: '0:05:00'
 jobs:
   run-fuzzing:
     runs-on: ubuntu-latest
@@ -38,17 +38,18 @@ jobs:
 
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
-            JOB_ID=$(/opt/slurm/current/bin/sbatch --wait wcss_run.sh "$DBMS" "$MAX_RUNTIME" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" wcss_run.sh "$DBMS" | awk '{print $4}')
             SLURM_EXIT_CODE=$?
+            RUN_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 
             # Print the job output
             echo "Job output:"
             cat slurm-$JOB_ID.out
 
             # Fail the step if the Slurm job failed
-            if [[ $SLURM_EXIT_CODE -ne 0 ]]; then
-              echo "Slurm job failed with exit code $SLURM_EXIT_CODE."
-              exit $SLURM_EXIT_CODE
+            if [[ $SLURM_EXIT_CODE -ne 0 || $RUN_EXIT_STATUS -ne 0 ]]; then
+              echo "Slurm job failed."
+              exit 1
             fi
 
             echo "Slurm job finished successfully."
