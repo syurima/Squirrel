@@ -617,10 +617,9 @@ IR *Mutator::strategy_insert(IR *cur) {
       res->right_ = deep_copy(blueprint->right_);
       return res;
     }
-  } else {
-    deep_delete(res);
-    return nullptr;
-  }
+  } 
+  deep_delete(res);
+  return nullptr;
 }
 
 IR *Mutator::strategy_replace(IR *cur) {
