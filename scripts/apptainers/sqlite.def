@@ -83,4 +83,12 @@ From: /tmp/ubuntu-fakeroot.sif
 
 %runscript
     cd /home/Squirrel/scripts/utils
-    exec python3 run.py sqlite ../../data/fuzz_root/input "$@"
+    # Determine number of workers from the SLURM environment (if present)
+    if [ -n "$AFL_WORKERS" ]; then
+        WORKERS=$AFL_WORKERS
+    else
+        # Default to 1 (no extra workers) when not running under Slurm.
+        WORKERS=1
+    fi
+    # Pass the workers count as a named argument to the Python script.
+    exec python3 run.py sqlite ../../data/fuzz_root/input --workers $WORKERS "$@"

@@ -28,7 +28,9 @@ def set_env(database):
   os.environ["SQUIRREL_CONFIG"] = get_config_path(database)
 
 
-def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None, seed=None):
+import subprocess
+
+def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None, seed=None, workers: int = 0):
   # Precondition checks
   if database not in DBMS:
     print(f"Unsupported database. The supported ones are {DBMS}")
@@ -53,12 +55,35 @@ def run(database, input_dir, output_dir=None, config_file=None, fuzzer=None, see
     os.environ["SQUIRREL_SEED"] = str(seed)
 
   output_id = str(uuid.uuid4())[:10]
-  if database == "sqlite":
-    cmd = f"{fuzzer} -i {input_dir} -o {output_dir} -M {output_id} -- /home/ossfuzz @@"
-  else:
-    cmd = f"{fuzzer} -i {input_dir} -o {output_dir} -M {output_id} -t 60000 -- {ROOTPATH}/build/db_driver"
 
-  os.system(cmd)
+  # Build the base command (master) for the selected DBMS
+  if database == "sqlite":
+    base_cmd = [fuzzer, "-i", input_dir, "-o", output_dir, "-M", output_id, "--", "/home/ossfuzz", "@@"]
+  else:
+    base_cmd = [fuzzer, "-i", input_dir, "-o", output_dir, "-M", output_id, "-t", "60000", "--", f"{ROOTPATH}/build/db_driver"]
+
+  # Launch the master instance
+  processes = []
+  processes.append(subprocess.Popen(base_cmd, env=os.environ.copy()))
+
+  # If workers are requested, launch secondary instances using -S
+  for i in range(workers):
+    worker_id = f"worker{i+1}"
+    worker_cmd = base_cmd.copy()
+    # replace the -M flag with -S for workers
+    # Find index of "-M" and replace it with "-S" and the worker id
+    if "-M" in worker_cmd:
+      idx = worker_cmd.index("-M")
+      worker_cmd[idx] = "-S"
+      worker_cmd[idx + 1] = worker_id
+    else:
+      # fallback: just prepend -S flag
+      worker_cmd = [fuzzer, "-i", input_dir, "-o", output_dir, "-S", worker_id] + worker_cmd[4:]
+    processes.append(subprocess.Popen(worker_cmd, env=os.environ.copy()))
+
+  # Wait for all processes to finish
+  for p in processes:
+    p.wait()
 
 
 if __name__ == "__main__":
