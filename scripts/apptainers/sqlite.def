@@ -50,11 +50,6 @@ From: /tmp/ubuntu-fakeroot.sif
     cmake -B build
     cmake --build build --config Release
 
-    # Download LLM Model
-    cd /home/Squirrel/srcs/llm_fixer/models
-    wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
-        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
-
     # Clone and configure SQLite
     cd /home
     git clone https://github.com/sqlite/sqlite sqlite3/
@@ -68,7 +63,7 @@ From: /tmp/ubuntu-fakeroot.sif
     export RANLIB=llvm-ranlib
     export AR=llvm-ar
     export AS=llvm-as
-    
+
     ../configure
     make -j
     make sqlite3.c
@@ -80,6 +75,11 @@ From: /tmp/ubuntu-fakeroot.sif
         /home/sqlite3/test/ossfuzz.o /home/sqlite3/test/ossshell.o -o /home/ossfuzz \
         ./sqlite3.o -ldl -pthread
 
+     # Download LLM Model
+    cd /home/Squirrel/srcs/llm_fixer/models
+    wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
+        
     # Clean up temp build context to save image space
     rm -rf /tmp/squirrel_context
     rm -rf /var/lib/apt/lists/*

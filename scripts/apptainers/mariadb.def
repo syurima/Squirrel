@@ -21,6 +21,19 @@ From: /tmp/ubuntu-fakeroot.sif
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
 
+    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c '
+      # -----------------------------------------------------------------
+      # Install extra packages for MariaDB build
+      # -----------------------------------------------------------------
+      RUN apt-get update && \
+          apt-get -o Acquire::Retries=5 -y --no-install-recommends \
+            libmysqlclient-dev \
+            apt-transport-https \
+            software-properties-common && \
+          rm -rf /var/lib/apt/lists/*
+
+    '
+
     # # -----------------------------------------------------------------
     # # Create a non‑root user (mirrors the Dockerfile)
     # # -----------------------------------------------------------------
