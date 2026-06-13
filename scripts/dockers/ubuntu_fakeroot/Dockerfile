@@ -14,6 +14,7 @@ RUN apt-get update && \
         curl \
         wget \
         gnupg \
+        gnutls-dev \
         build-essential \
         cmake \
         make \
@@ -30,17 +31,28 @@ RUN apt-get update && \
         lld \
         python3-fire
     
-# This is for sqlite (try to remove later)
+# --- SQLITE EXTRAS ---
 RUN apt-get -o Acquire::Retries=5 -y install \
         tcl8.6 tcl8.6-tdbc-sqlite3
     
+
+# --- MySQL (and mariadb) build dependencies---
+
+RUN apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+        libmysqlclient-dev \
+        apt-transport-https \
+        software-properties-common
+RUN sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+    apt-get -o Acquire::Retries=5 update &&  \
+    apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
+
 RUN  rm -rf /var/lib/apt/lists*
-
-
 # -----------------------------------------------------------------
 # Example usage (run from host):
-#   docker build -t ubuntu-fakeroot .
-#   docker run --rm -it ubuntu-fakeroot bash
+#   docker build -t syurima/ubuntu-fakeroot:latest .
+#   docker run --rm -it syurima/ubuntu-fakeroot:latest bash
+# To push to Docker Hub:
+#   docker push syurima/ubuntu-fakeroot:latest
 # Inside the container you can now do:
 #   fakeroot <command>
 # -----------------------------------------------------------------

@@ -1,0 +1,118 @@
+Bootstrap: localimage
+From: /tmp/ubuntu-fakeroot.sif
+
+%labels
+    Maintainer "Squirrel"
+
+%environment
+    export USE_LLM=1
+    export DEBIAN_FRONTEND=noninteractive
+    export CC=/home/Squirrel/AFLplusplus/afl-cc
+    export CXX=/home/Squirrel/AFLplusplus/afl-c++
+%files
+    # Copies local build context to the temp location
+    # . /tmp/squirrel_context
+
+%post
+    export USE_LLM=1
+    export DEBIAN_FRONTEND=noninteractive
+    
+    # Default MySQL version and build parallelism (mirrors Dockerfile ARGs)
+    export MYSQL_REF=${MYSQL_REF:-mysql-8.4.9}
+    export BUILD_JOBS=${BUILD_JOBS:-20}
+
+    # # Create a non‑root user similar to the Dockerfile
+    # groupadd dobigthing
+    # useradd -l -K UMASK=0000 -d /home -g dobigthing dobigthing
+    # echo "dobigthing:dobigthing" | chpasswd
+    # usermod -a -G sudo dobigthing
+    # chmod +w /etc/sudoers && \
+    #     echo "%dobigthing   ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    #     chmod -w /etc/sudoers
+
+    # Ensure /home and model directories exist
+    mkdir -p /home
+    mkdir -p /models
+
+    git config --global http.version HTTP/1.1
+    git config --global submodule.fetchJobs 1
+        
+    # Build Squirrel context (old is the original Squirrel repo, new is the one with our changes)
+    if [ "$USE_OLD_SQUIRREL" = "1" ]; then
+        git clone --depth=1 https://github.com/s3team/Squirrel.git /home/Squirrel
+    else
+        git clone --depth=1 https://github.com/syurima/Squirrel.git /home/Squirrel
+    fi
+    cd /home/Squirrel
+    for attempt in 1 2 3; do
+        git submodule update --init --recursive --depth 1 --jobs 1 && break
+    done
+
+    # Compile Squirrel, AFLplusplus, and llama.cpp
+    cd /home/Squirrel
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
+    cmake --build build -j
+    
+    cd AFLplusplus/
+    LLVM_CONFIG=llvm-config-14 make -j20
+    
+    cd ../llama.cpp/
+    cmake -B build
+    cmake --build build --config Release
+
+    # Clone and build MySQL (using AFL compilers)
+    export MYSQL_REF=${MYSQL_REF:-mysql-8.4.9}
+    export BUILD_JOBS=${BUILD_JOBS:-20}
+    
+    cd /home
+    git clone --depth=1 --single-branch --branch "${MYSQL_REF}" \
+        https://github.com/mysql/mysql-server.git mysql
+
+    # Install boost (required by MySQL build). This mirrors the Dockerfile which expects boost at /home/boost.
+    # Fetch boost 1.81 (or latest) if not already present.
+    if [ ! -d /home/boost ]; then
+        wget -qO- https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz | tar xz -C /home && \
+        mv /home/boost_1_81_0 /home/boost
+    fi
+
+    # Build MySQL using AFL compilers
+    export CC=/home/Squirrel/AFLplusplus/afl-cc
+    export CXX=/home/Squirrel/AFLplusplus/afl-c++
+    cmake -S /home/mysql -B /home/bld \
+        -DDOWNLOAD_BOOST=1 -DWITH_BOOST=/home/boost \
+        -DWITH_DEBUG=1 -DCPACK_MONOLITHIC_INSTALL=1 -DWITH_UNIT_TESTS=OFF
+    cmake --build /home/bld --parallel ${BUILD_JOBS:-20}
+    cmake --install /home/bld --prefix /usr/local/mysql/
+
+    # Adjust permissions and initialize MySQL data directory
+    # chown dobigthing:dobigthing /usr/local/mysql/ -R
+    # cd /usr/local/mysql/
+    # mkdir mysql-files && chmod 750 mysql-files
+    # AFL_IGNORE_PROBLEMS=1 bin/mysqld --initialize-insecure --user=dobigthing
+    # if [ -x bin/mysql_ssl_rsa_setup ]; then bin/mysql_ssl_rsa_setup; fi
+
+    # -- TODO
+    cd /usr/local/mysql/
+    AFL_IGNORE_PROBLEMS=1 bin/mysqld --initialize-insecure
+    if [ -x bin/mysql_ssl_rsa_setup ]; then bin/mysql_ssl_rsa_setup; fi
+
+    # Download LLM Model
+    cd /home/Squirrel/srcs/llm_fixer/models
+    wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
+
+    # Clean up temporary build context to save image space
+    rm -rf /tmp/squirrel_context
+    rm -rf /var/lib/apt/lists/*
+
+%runscript
+    cd /home/Squirrel/scripts/utils
+    # Determine number of workers from the SLURM environment (if present)
+    if [ -n "$AFL_WORKERS" ]; then
+        WORKERS=$AFL_WORKERS
+    else
+        # Default to 1 (no extra workers) when not running under Slurm.
+        WORKERS=1
+    fi
+    # Pass the workers count as a named argument to the Python script.
+    exec python3 run.py mysql ../../data/fuzz_root/mysql_input/ --workers $WORKERS "$@"
