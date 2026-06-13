@@ -18,6 +18,7 @@ RUN apt-get update && \
         build-essential \
         cmake \
         make \
+        bash \
         vim \
         sudo \
         git \
@@ -27,25 +28,28 @@ RUN apt-get update && \
         pkg-config \
         libpq-dev \
         libyaml-cpp-dev \
-        llvm \
-        llvm-dev \
         lld \
-        python3-fire
+        python3-fire \
+        lsb-release \
+        software-properties-common
     
+RUN wget https://apt.llvm.org/llvm.sh && \
+        chmod +x llvm.sh && \
+        sudo ./llvm.sh 21
 # --- SQLITE EXTRAS ---
-RUN apt-get -o Acquire::Retries=5 -y install \
-        tcl8.6 tcl8.6-tdbc-sqlite3
+# RUN apt-get -o Acquire::Retries=5 -y install \
+#         tcl8.6 tcl8.6-tdbc-sqlite3
     
 
 # --- MySQL (and mariadb) build dependencies---
 
-RUN apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
-        libmysqlclient-dev \
-        apt-transport-https \
-        software-properties-common
-RUN sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
-    apt-get -o Acquire::Retries=5 update &&  \
-    apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
+# RUN apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+#         libmysqlclient-dev \
+#         apt-transport-https \
+#         software-properties-common
+# RUN sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+#     apt-get -o Acquire::Retries=5 update &&  \
+#     apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
 
 RUN  rm -rf /var/lib/apt/lists*
 # -----------------------------------------------------------------

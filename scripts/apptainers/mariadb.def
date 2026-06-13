@@ -7,8 +7,8 @@ From: /tmp/ubuntu-fakeroot.sif
 %environment
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
-    export CC=/home/Squirrel/AFLplusplus/afl-cc
-    export CXX=/home/Squirrel/AFLplusplus/afl-c++
+    export CC=/home/Squirrel/AFLplusplus/afl-clang-lto
+    export CXX=/home/Squirrel/AFLplusplus/afl-clang-lto++
 
 %files
     # Copies local build context to the temp location
@@ -27,10 +27,14 @@ From: /tmp/ubuntu-fakeroot.sif
       # -----------------------------------------------------------------
       apt-get update && \
       apt-get -o Acquire::Retries=5 -y --no-install-recommends \
-        libmysqlclient-dev \
+        libmariadb-dev \
         apt-transport-https \
         software-properties-common && \
       rm -rf /var/lib/apt/lists/*
+      
+      sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+      apt-get -o Acquire::Retries=5 update &&  \
+      apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
     '
 
     # # -----------------------------------------------------------------
