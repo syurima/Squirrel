@@ -28,6 +28,7 @@ RUN apt-get update && \
         libpq-dev \
         libyaml-cpp-dev \
         llvm \
+        llvm-dev \
         lld \
         python3-fire
     

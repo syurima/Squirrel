@@ -57,7 +57,7 @@ From: /tmp/ubuntu-fakeroot.sif
     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
     cmake --build build -j
 
-    cd AFLplusplus && LLVM_CONFIG=llvm-config-14 make -j20
+    cd AFLplusplus && LLVM_CONFIG=llvm-config-21 make -j20
     cd ../llama.cpp && cmake -B build && cmake --build build --config Release
 
     # -----------------------------------------------------------------
@@ -69,8 +69,9 @@ From: /tmp/ubuntu-fakeroot.sif
 
     # Build MariaDB with the AFL compilers
     mkdir -p bld && cd bld
-    CC=/home/Squirrel/AFLplusplus/afl-clang-fast \
-    CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
+    CC=/home/Squirrel/AFLplusplus/afl-clang-lto \
+    CXX=/home/Squirrel/AFLplusplus/afl-clang-lto++ \
+    RANLIB=llvm-ranlib AR=llvm-ar AS=llvm-as \
     cmake ../mariadb && \
     make -j20 && \
     cmake --install . --prefix /usr/local/mysql/
