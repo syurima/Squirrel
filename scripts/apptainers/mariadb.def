@@ -2,7 +2,7 @@ Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
 %labels
-    Maintainer "Squirrel"
+    Maintainer "Squirrel-MariaDB"
 
 %environment
     export USE_LLM=1

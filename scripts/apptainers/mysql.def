@@ -2,7 +2,7 @@ Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
 %labels
-    Maintainer "Squirrel"
+    Maintainer "Squirrel-MySQL"
 
 %environment
     export USE_LLM=1
@@ -24,7 +24,7 @@ From: /tmp/ubuntu-fakeroot.sif
 
     FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c '
       # -----------------------------------------------------------------
-      # Install extra packages for MariaDB build
+      # Install extra packages for MySQL build
       # -----------------------------------------------------------------
       apt-get update && \
       apt-get -o Acquire::Retries=5 -y install \
