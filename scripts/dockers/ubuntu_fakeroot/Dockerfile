@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install fakeroot and the common development tools
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y \
         fakeroot \
         ca-certificates \
         curl \
@@ -31,15 +31,11 @@ RUN apt-get update && \
         lld \
         python3-fire \
         software-properties-common
-
-# # --- SQLITE EXTRAS ---
-# RUN apt-get -o Acquire::Retries=5 -y install \
-#         tcl8.6 tcl8.6-tdbc-sqlite3
     
 
 # # --- MySQL (and mariadb) build dependencies---
 
-RUN apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 install -y \
         libmysqlclient-dev \
         libncurses5-dev \
         zlib1g-dev \

@@ -38,7 +38,7 @@ From: /tmp/ubuntu-fakeroot.sif
     done
 
     # Compile Squirrel, AFLplusplus, and llama.cpp
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build -j
     cd AFLplusplus && LLVM_CONFIG=llvm-config-14 make -j20
     cd ../llama.cpp && cmake -B build && cmake --build build --config Release
