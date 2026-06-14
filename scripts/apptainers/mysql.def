@@ -68,13 +68,6 @@ From: /tmp/ubuntu-fakeroot.sif
     git clone --depth=1 --single-branch --branch "${MYSQL_REF}" \
         https://github.com/mysql/mysql-server.git mysql
 
-    # Install boost (required by MySQL build). This mirrors the Dockerfile which expects boost at /home/boost.
-    # Fetch boost 1.81 (or latest) if not already present.
-    if [ ! -d /home/boost ]; then
-        wget -qO- https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz | tar xz -C /home && \
-        mv /home/boost_1_81_0 /home/boost
-    fi
-
     # Build MySQL using AFL compilers
     export CC=/home/Squirrel/AFLplusplus/afl-cc
     export CXX=/home/Squirrel/AFLplusplus/afl-c++
