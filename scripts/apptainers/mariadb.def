@@ -20,7 +20,8 @@ From: /tmp/ubuntu-fakeroot.sif
     # -----------------------------------------------------------------
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
-
+    export DPkg::Options::="--force-overwrite"
+    
     FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c "
       # -----------------------------------------------------------------
       # Install extra packages for MariaDB build
@@ -28,8 +29,7 @@ From: /tmp/ubuntu-fakeroot.sif
       apt-get update && \
       apt-get -o Acquire::Retries=5 -y install \
         libmysqlclient-dev \
-        --no-install-recommends \
-        -o DPkg::Options::=\"--force-overwrite\" && \
+        --no-install-recommends && \
       rm -rf /var/lib/apt/lists/*
 
       sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
