@@ -30,12 +30,6 @@ From: /tmp/ubuntu-fakeroot.sif
               -o DPkg::Options::=\"--force-overwrite\" \
               -y install \
                 libmysqlclient-dev \
-                libncurses5-dev \
-                libreadline-dev \
-                zlib1g-dev \
-                libssl-dev \
-                libjemalloc-dev \
-                libboost-dev \
                 --no-install-recommends && \
       rm -rf /var/lib/apt/lists/*
     "
