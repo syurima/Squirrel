@@ -21,7 +21,7 @@ public:
         llama_model_params model_params = llama_model_default_params();
         model_params.n_gpu_layers = n_gpu_layers;
 
-        model = llama_load_model_from_file(
+        model = llama_model_load_from_file(
             model_path.c_str(),
             model_params
         );
@@ -34,7 +34,7 @@ public:
         ctx_params.n_ctx = n_ctx;
         ctx_params.n_threads = n_threads;
 
-        ctx = llama_new_context_with_model(model, ctx_params);
+        ctx = llama_init_from_model(model, ctx_params);
 
         if (!ctx) {
             throw std::runtime_error("Failed to create context");
@@ -46,7 +46,7 @@ public:
             llama_free(ctx);
 
         if (model)
-            llama_free_model(model);
+            llama_model_free(model);
 
         llama_backend_free();
     }

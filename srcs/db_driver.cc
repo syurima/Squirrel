@@ -171,7 +171,7 @@ static void __afl_end_testcase(client::ExecutionStatus status) {
   if (write(FORKSRV_FD + 1, &waitpid_status, 4) != 4) exit(1);
 }
 
-int default_main(std::string& startup_cmd, client::DBClient *database) {
+int default_main(std::string& db_name, std::string& startup_cmd, client::DBClient *database) {
   const char *config_file_path = getenv(kConfigEnv);
   if (!config_file_path) {
     std::cerr << absl::StrFormat(
@@ -201,10 +201,6 @@ int default_main(std::string& startup_cmd, client::DBClient *database) {
     // If any issue with seed parsing, fall back to time-based seed.
     mutator_common::seed_rng(seed_from_time());
   }
-  std::string db_name = config["db"].as<std::string>();
-  std::string startup_cmd = config["startup_cmd"].as<std::string>();
-  client::DBClient *database = client::create_client(db_name, config);
-  database->initialize(config);
 
   /* This is were the testcase data is written into */
   constexpr size_t kMaxInputSize = 0x100000;
@@ -269,7 +265,7 @@ int llm_main(std::string& db_name, std::string& startup_cmd, client::DBClient *d
   // is stopped and restarted, we should not start another server.
   __afl_map_shm();
   if (!database->check_alive()) {
-    system(startup_cmd.c_str());
+    (void)system(startup_cmd.c_str());
     sleep(5);
   }
 
@@ -325,7 +321,7 @@ int main(int argc, char *argv[]) {
 
   const char *config_llm = getenv(kUseLlmConfig);
   if (!config_llm || std::stoi(config_llm) != 1) {
-    return default_main(startup_cmd, database);
+    return default_main(db_name, startup_cmd, database);
   } else {
     return llm_main(db_name, startup_cmd, database);
   }
