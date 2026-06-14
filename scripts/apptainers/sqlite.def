@@ -55,7 +55,7 @@ From: /tmp/ubuntu-fakeroot.sif
     cmake --build build -j
     
     cd AFLplusplus/
-    LLVM_CONFIG=llvm-config-21 make -j20
+    LLVM_CONFIG=llvm-config-14 make -j20
     
     cd ../llama.cpp/
     cmake -B build
@@ -69,8 +69,10 @@ From: /tmp/ubuntu-fakeroot.sif
     cd bld
 
     # Build SQLite using AFL compilers
-    export CC=/home/Squirrel/AFLplusplus/afl-clang-lto
-    export CXX=/home/Squirrel/AFLplusplus/afl-clang-lto++
+    export CC=/home/Squirrel/AFLplusplus/afl-cc
+    export CXX=/home/Squirrel/AFLplusplus/afl-c++
+    export CXXFLAGS="-std=c++17 $CXXFLAGS"
+
     export RANLIB=llvm-ranlib
     export AR=llvm-ar
     export AS=llvm-as
