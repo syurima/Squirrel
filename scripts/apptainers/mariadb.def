@@ -106,18 +106,21 @@ From: /tmp/ubuntu-fakeroot.sif
     wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
         "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
-
-    # -----------------------------------------------------------------
-    # Determine AFL map size
-    # -----------------------------------------------------------------
-    # Run a short instance to capture the map size, store it for the entrypoint
-    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
-        | tail -n 1 | cut -d"," -f8 | cut -d" " -f3 > /tmp/mapsize
-
     # Clean up apt cache to keep the image small
     rm -rf /var/lib/apt/lists/*
 
 %runscript
+    # -----------------------------------------------------------------
+    # Determine AFL map size (run‑time, not build‑time)
+    # -----------------------------------------------------------------
+    if [ ! -f /etc/afl_mapsize ]; then
+        # First run – compute and cache it
+        AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
+            | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /etc/afl_mapsize
+    fi
+
+    export AFL_MAP_SIZE=$(cat /etc/afl_mapsize)
+
     cd /home/Squirrel/scripts/utils
     # Determine number of workers from the SLURM environment (if present)
     if [ -n "$AFL_WORKERS" ]; then
@@ -127,5 +130,4 @@ From: /tmp/ubuntu-fakeroot.sif
         WORKERS=1
     fi
 
-    export AFL_MAP_SIZE=$(cat /tmp/mapsize)
     exec python3 run.py mariadb ../../data/fuzz_root/mysql_input/ --workers $WORKERS"$@"
