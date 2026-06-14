@@ -24,7 +24,7 @@ int main() {
   vector<IR *> v_ir;
   IR *root = ast->translate(v_ir);
 
-  const int N = 100000;
+  const int N = 1000000;
 
   int success = 0;
   int failed = 0;

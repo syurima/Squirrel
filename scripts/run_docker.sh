@@ -26,19 +26,23 @@ CONTAINER_NAME="squirrel-${DBMS}-run-${RANDOM_ID//[^a-zA-Z0-9_.-]/-}"
 echo "Starting container: ${CONTAINER_NAME}"
 echo "Results will be copied to: ${OUTPUT_PATH}"
 
+SCHEDULER="${3:-UCB1}"
+
 if [ "${2:-}" = "benchmark" ]; then
-  echo "Running mutator benchmark..."
+  echo "Running mutator benchmark with scheduler: $SCHEDULER"
   docker run --rm -it \
     --entrypoint bash \
     -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    -e MUTATION_SCHEDULER="$SCHEDULER" \
     "$DOCKER_IMAGE" \
-    -c "cd /home/Squirrel && ./build/tests/mutator_benchmark UCB1"
+    -c "cd /home/Squirrel && ./build/tests/mutator_benchmark"
   exit 0
 else
   set +e
   docker run -i \
     --name "$CONTAINER_NAME" \
     -e AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES=1 \
+    -e MUTATION_SCHEDULER="$SCHEDULER" \
     "$DOCKER_IMAGE"
   DOCKER_EXIT_CODE=$?
   set -e

@@ -15,6 +15,12 @@ enum class MutationKind {
     Replace
 };
 
+enum class MutationScheduler {
+    Original,
+    Weighted,
+    UCB1
+};
+
 struct MutationWeights {
     int delete_weight = 20;
     int insert_weight = 40;
@@ -23,12 +29,14 @@ struct MutationWeights {
 
 struct MutationStats {
   unsigned long used = 0;
+  unsigned long success = 0;
+  unsigned long failed = 0;
   double total_reward = 0.0;
 };
 
 class Mutator {
  public:
-  Mutator() { srand(time(nullptr)); }
+  Mutator();
 
   IR *deep_copy_with_record(const IR *root, const IR *record);
   unsigned long hash(IR *);
@@ -37,7 +45,13 @@ class Mutator {
   IR *ir_random_generator(vector<IR *> v_ir_collector);
 
   vector<IR *> mutate_all(vector<IR *> &v_ir_collector);
+  vector<IR *> mutate_original(IR *input);
+  vector<IR *> mutate_weights(IR *input);
+  vector<IR *> mutate_ucb1(IR *input);
 
+  MutationWeights get_seed_adaptive_weights(IR *input);
+  MutationWeights get_feedback_adaptive_weights(const MutationWeights &seed_weights);
+  MutationKind choose_mutation_kind(const MutationWeights &weights);
   vector<IR *> mutate(IR *input);
   IR *strategy_delete(IR *cur);
   IR *strategy_insert(IR *cur);
@@ -86,6 +100,9 @@ class Mutator {
   void debug(IR *root);
   unsigned long get_library_size();
   int try_fix(char *buf, int len, char *&new_buf, int &new_len);
+  void set_scheduler(MutationScheduler scheduler) {
+            scheduler_ = scheduler;
+        }
 
  private:
   IR *record_ = NULL;
@@ -111,7 +128,7 @@ class Mutator {
   MutationStats delete_stats_;
   MutationStats insert_stats_;
   MutationStats replace_stats_;
-  
+  MutationScheduler scheduler_ = MutationScheduler::UCB1;
   void update_mutation_stats(MutationKind kind, IR *result);
   MutationKind choose_mutation_kind_ucb();
 };
