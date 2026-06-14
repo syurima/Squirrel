@@ -21,23 +21,6 @@ From: /tmp/ubuntu-fakeroot.sif
     export MYSQL_REF=${MYSQL_REF:-mysql-8.4.9}
     export BUILD_JOBS=${BUILD_JOBS:-20}
 
-
-    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c '
-        # -----------------------------------------------------------------
-        # Install extra packages for MySQL build
-        # -----------------------------------------------------------------
-        apt-get update && \
-        apt-get -o Acquire::Retries=5 \
-                -o DPkg::Options::=\"--force-overwrite\" \
-                -o DPkg::Options::=\"--force-confnew\" \
-                -o DPkg::Options::=\"--force-unsafe-io\" \
-                -y install \
-                libmysqlclient-dev \
-                apt-transport-https \
-                software-properties-common \
-                --no-install-recommends && \
-        rm -rf /var/lib/apt/lists/*
-    '
     # # Create a non‑root user similar to the Dockerfile
     # groupadd dobigthing
     # useradd -l -K UMASK=0000 -d /home -g dobigthing dobigthing
