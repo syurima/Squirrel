@@ -96,15 +96,12 @@ From: /tmp/ubuntu-fakeroot.sif
 
 %runscript
     # -----------------------------------------------------------------
-    # Determine AFL map size (run‑time, not build‑time)
+    # Determine AFL map size (run‑time)
     # -----------------------------------------------------------------
-    if [ ! -f /etc/afl_mapsize ]; then
-        # First run – compute and cache it
-        AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
-            | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /etc/afl_mapsize
-    fi
+    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
+        | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /tmp/mapsize
 
-    export AFL_MAP_SIZE=$(cat /etc/afl_mapsize)
+    export AFL_MAP_SIZE=$(cat /tmp/mapsize)
 
     cd /home/Squirrel/scripts/utils
     # Determine number of workers from the SLURM environment (if present)

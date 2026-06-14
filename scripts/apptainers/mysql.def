@@ -99,6 +99,15 @@ From: /tmp/ubuntu-fakeroot.sif
     rm -rf /var/lib/apt/lists/*
 
 %runscript
+    # -----------------------------------------------------------------
+    # Determine AFL map size (run‑time)
+    # -----------------------------------------------------------------
+    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 | grep "__afl_map_size" \
+        | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /tmp/mapsize
+
+    export AFL_MAP_SIZE=$(cat /tmp/mapsize)
+    export AFL_IGNORE_PROBLEMS=1
+
     cd /home/Squirrel/scripts/utils
     # Determine number of workers from the SLURM environment (if present)
     if [ -n "$AFL_WORKERS" ]; then
@@ -108,4 +117,5 @@ From: /tmp/ubuntu-fakeroot.sif
         WORKERS=1
     fi
     # Pass the workers count as a named argument to the Python script.
+
     exec python3 run.py mysql ../../data/fuzz_root/mysql_input/ --workers $WORKERS "$@"

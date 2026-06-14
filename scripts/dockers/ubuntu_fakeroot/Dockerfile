@@ -41,6 +41,10 @@ RUN apt-get update && \
 
 RUN apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
         libmysqlclient-dev \
+        libncurses5-dev \
+        zlib1g-dev \
+        libssl-dev \
+        libreadline-dev \
         apt-transport-https
 # RUN sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
 #     apt-get -o Acquire::Retries=5 update &&  \
