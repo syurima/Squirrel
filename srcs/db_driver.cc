@@ -171,10 +171,7 @@ static void __afl_end_testcase(client::ExecutionStatus status) {
   if (write(FORKSRV_FD + 1, &waitpid_status, 4) != 4) exit(1);
 }
 
-<<<<<<< HEAD
 int default_main(std::string& startup_cmd, client::DBClient *database) {
-=======
-int main(int argc, char *argv[]) {
   const char *config_file_path = getenv(kConfigEnv);
   if (!config_file_path) {
     std::cerr << absl::StrFormat(
@@ -208,7 +205,6 @@ int main(int argc, char *argv[]) {
   std::string startup_cmd = config["startup_cmd"].as<std::string>();
   client::DBClient *database = client::create_client(db_name, config);
   database->initialize(config);
->>>>>>> 8a82d6726f86b15e12cae25aea1f79ccf84dc7f6
 
   /* This is were the testcase data is written into */
   constexpr size_t kMaxInputSize = 0x100000;
