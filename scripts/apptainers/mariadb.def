@@ -7,8 +7,8 @@ From: /tmp/ubuntu-fakeroot.sif
 %environment
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
-    export CC=/home/Squirrel/AFLplusplus/afl-clang-lto
-    export CXX=/home/Squirrel/AFLplusplus/afl-clang-lto++
+    export CC=/home/Squirrel/AFLplusplus/afl-cc
+    export CXX=/home/Squirrel/AFLplusplus/afl-c++
 
 %files
     # Copies local build context to the temp location
@@ -21,20 +21,21 @@ From: /tmp/ubuntu-fakeroot.sif
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
 
-    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c '
+    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c "
       # -----------------------------------------------------------------
       # Install extra packages for MariaDB build
       # -----------------------------------------------------------------
       apt-get update && \
       apt-get -o Acquire::Retries=5 -y install \
         libmysqlclient-dev \
+        --no-install-recommends \
+        -o DPkg::Options::=\"--force-overwrite\" && \
       rm -rf /var/lib/apt/lists/*
-      
-      sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
-      apt-get -o Acquire::Retries=5 update &&  \
-      apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
-    '
 
+      sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
+      apt-get -o Acquire::Retries=5 update && \
+      apt-get -o Acquire::Retries=5 -y build-dep mariadb-server
+    "
     # # -----------------------------------------------------------------
     # # Create a non‑root user (mirrors the Dockerfile)
     # # -----------------------------------------------------------------
@@ -71,7 +72,7 @@ From: /tmp/ubuntu-fakeroot.sif
     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
     cmake --build build -j
 
-    cd AFLplusplus && LLVM_CONFIG=llvm-config-21 make -j20
+    cd AFLplusplus && LLVM_CONFIG=llvm-config-14 make -j20
     cd ../llama.cpp && cmake -B build && cmake --build build --config Release
 
     # -----------------------------------------------------------------
@@ -83,8 +84,9 @@ From: /tmp/ubuntu-fakeroot.sif
 
     # Build MariaDB with the AFL compilers
     mkdir -p bld && cd bld
-    CC=/home/Squirrel/AFLplusplus/afl-clang-lto \
-    CXX=/home/Squirrel/AFLplusplus/afl-clang-lto++ \
+    CC=/home/Squirrel/AFLplusplus/afl-clang-fast \
+    CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
+    export CXXFLAGS="-std=c++17 $CXXFLAGS"
     RANLIB=llvm-ranlib AR=llvm-ar AS=llvm-as \
     cmake ../mariadb && \
     make -j20 && \
