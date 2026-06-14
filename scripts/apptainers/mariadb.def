@@ -21,7 +21,7 @@ From: /tmp/ubuntu-fakeroot.sif
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
     
-    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c "
+      FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c "
       # -----------------------------------------------------------------
       # Install extra packages for MariaDB build
       # -----------------------------------------------------------------
@@ -30,14 +30,14 @@ From: /tmp/ubuntu-fakeroot.sif
               -o DPkg::Options::=\"--force-overwrite\" \
               -y install \
                 libmysqlclient-dev \
+                libncurses5-dev \
+                libreadline-dev \
+                zlib1g-dev \
+                libssl-dev \
+                libjemalloc-dev \
+                libboost-dev \
                 --no-install-recommends && \
       rm -rf /var/lib/apt/lists/*
-
-      sed -i 's/^# deb-src /deb-src /' /etc/apt/sources.list && \
-      apt-get -o Acquire::Retries=5 update && \
-      apt-get -o Acquire::Retries=5 \
-              -o DPkg::Options::=\"--force-overwrite\" \
-              -y build-dep mariadb-server
     "
     # # -----------------------------------------------------------------
     # # Create a non‑root user (mirrors the Dockerfile)
