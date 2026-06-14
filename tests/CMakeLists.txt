@@ -3,6 +3,8 @@ project(Squirrel)
 
 set(CMAKE_CXX_STANDARD 17)
 
+option(BUILD_MUTATOR_BENCHMARK "Build the mutator benchmark executable" OFF)
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -30,14 +32,12 @@ target_link_libraries(
 include(GoogleTest)
 gtest_discover_tests(db_config_test)
 
-add_executable(mutator_benchmark
-    mutator_benchmark.cpp
-)
 
-target_link_libraries(mutator_benchmark
-    sqlite_impl
-)
+if(BUILD_MUTATOR_BENCHMARK AND SQLITE)
+    add_executable(mutator_benchmark mutator_benchmark.cpp)
+    target_link_libraries(mutator_benchmark PRIVATE sqlite_impl)
+    target_include_directories(mutator_benchmark PRIVATE
+        ../srcs/internal/sqlite/include)
+endif()
 
-target_include_directories(mutator_benchmark PRIVATE
-    ../srcs/internal/sqlite/include
-)
+

@@ -2,7 +2,7 @@ Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
 %labels
-    Maintainer "Squirrel"
+    Maintainer "Squirrel-SQLite"
 
 %environment
     export USE_LLM=1
@@ -19,6 +19,17 @@ From: /tmp/ubuntu-fakeroot.sif
     export DEBIAN_FRONTEND=noninteractive
     
     export CFLAGS="-DSQLITE_MAX_LENGTH=128000000 -DSQLITE_MAX_SQL_LENGTH=128000000 -DSQLITE_MAX_MEMORY=25000000 -DSQLITE_PRINTF_PRECISION_LIMIT=1048576 -DSQLITE_DEBUG=1 -DSQLITE_MAX_PAGE_COUNT=16384"
+
+    # import extra packages for SQLite build
+    FAKEROOTDONTTRYCHOWN=1 fakeroot bash -c '
+      # -----------------------------------------------------------------
+      # Install extra packages for SQLite build
+      # -----------------------------------------------------------------
+      apt-get update && \
+      apt-get -o Acquire::Retries=5 -y install \
+        tcl8.6 tcl8.6-tdbc-sqlite3
+      rm -rf /var/lib/apt/lists/*
+    '
 
     # Ensure /home and model directories exist
     mkdir -p /home
@@ -50,11 +61,6 @@ From: /tmp/ubuntu-fakeroot.sif
     cmake -B build
     cmake --build build --config Release
 
-    # Download LLM Model
-    cd /home/Squirrel/srcs/llm_fixer/models
-    wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
-        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
-
     # Clone and configure SQLite
     cd /home
     git clone https://github.com/sqlite/sqlite sqlite3/
@@ -65,7 +71,12 @@ From: /tmp/ubuntu-fakeroot.sif
     # Build SQLite using AFL compilers
     export CC=/home/Squirrel/AFLplusplus/afl-cc
     export CXX=/home/Squirrel/AFLplusplus/afl-c++
-    
+    export CXXFLAGS="-std=c++17 $CXXFLAGS"
+
+    export RANLIB=llvm-ranlib
+    export AR=llvm-ar
+    export AS=llvm-as
+
     ../configure
     make -j
     make sqlite3.c
@@ -76,6 +87,11 @@ From: /tmp/ubuntu-fakeroot.sif
     $CXX $CXXFLAGS \
         /home/sqlite3/test/ossfuzz.o /home/sqlite3/test/ossshell.o -o /home/ossfuzz \
         ./sqlite3.o -ldl -pthread
+
+     # Download LLM Model
+    cd /home/Squirrel/srcs/llm_fixer/models
+    wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
+        "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
     # Clean up temp build context to save image space
     rm -rf /tmp/squirrel_context

@@ -43,7 +43,7 @@ jobs:
             USE_OLD_SQUIRREL="${{ github.event.inputs.use_old_squirrel }}"
             SLURM_CORES="${{ github.event.inputs.slurm_cores }}"
             AFL_WORKERS="${{ github.event.inputs.afl_workers }}"
-            dirName=${{ github.actor }}-$DBMS
+            dirName=${{ github.actor }}-$DBMS-run-$USE_OLD_SQUIRREL
 
             cd ~/"$dirName"
             
@@ -65,5 +65,9 @@ jobs:
               echo "Slurm job failed."
               exit 1
             fi
+
+            # Clean up the temporary directory
+            cd ..
+            rm -rf ~/"$dirName"
 
             echo "Slurm job finished successfully."

@@ -2,17 +2,16 @@ Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
 %labels
-    Maintainer "Squirrel"
+    Maintainer "Squirrel-MariaDB"
 
 %environment
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
-    export CC=/home/Squirrel/AFLplusplus/afl-cc
-    export CXX=/home/Squirrel/AFLplusplus/afl-c++
+    export CC=/home/Squirrel/AFLplusplus/afl-clang-fast
+    export CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++
 
 %files
-    # Copies local build context to the temp location
-    # . /tmp/squirrel_context
+    # (no changes needed)
 
 %post
     # -----------------------------------------------------------------
@@ -21,27 +20,12 @@ From: /tmp/ubuntu-fakeroot.sif
     export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
 
-    # # -----------------------------------------------------------------
-    # # Create a non‑root user (mirrors the Dockerfile)
-    # # -----------------------------------------------------------------
-    # groupadd dobigthing && \
-    # useradd -l -K UMASK=0000 -d /home -g dobigthing dobigthing && \
-    # mkdir -p /home && chown dobigthing:dobigthing /home && \
-    # echo "dobigthing:dobigthing" | chpasswd && \
-    # usermod -a -G sudo dobigthing && \
-    # chmod +w /etc/sudoers && \
-    # echo "%dobigthing   ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    # chmod -w /etc/sudoers
-
     # -----------------------------------------------------------------
     # Build Squirrel
     # -----------------------------------------------------------------
     mkdir -p /models
-
     git config --global http.version HTTP/1.1
     git config --global submodule.fetchJobs 1
-        
-    # Build Squirrel context (old is the original Squirrel repo, new is the one with our changes)
     if [ "$USE_OLD_SQUIRREL" = "1" ]; then
         git clone --depth=1 https://github.com/Dobigthing666/Squirrel.git /home/Squirrel
     else
@@ -54,61 +38,72 @@ From: /tmp/ubuntu-fakeroot.sif
     done
 
     # Compile Squirrel, AFLplusplus, and llama.cpp
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build -j
-
     cd AFLplusplus && LLVM_CONFIG=llvm-config-14 make -j20
     cd ../llama.cpp && cmake -B build && cmake --build build --config Release
 
     # -----------------------------------------------------------------
-    # Build MariaDB
+    # Build MariaDB with the AFL compilers
     # -----------------------------------------------------------------
-    # Clone MariaDB source
     cd /home
     git clone --depth=1 https://github.com/MariaDB/server.git mariadb
 
-    # Build MariaDB with the AFL compilers
     mkdir -p bld && cd bld
     CC=/home/Squirrel/AFLplusplus/afl-clang-fast \
     CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
-    cmake ../mariadb && \
+    export CXXFLAGS="-std=c++17 $CXXFLAGS"
+    RANLIB=llvm-ranlib AR=llvm-ar AS=llvm-as \
+    cmake ../mariadb/ && \
     make -j20 && \
     cmake --install . --prefix /usr/local/mysql/
-
-    # # Ensure the non‑root user can own the installation
-    # sudo chown -R dobigthing:dobigthing /usr/local/mysql/
 
     # Initialise the data directory
     cd /usr/local/mysql && \
     scripts/mysql_install_db
 
-    # ------------------------------------------------------------------
-    # Download LLM Model
-    # ------------------------------------------------------------------
+    # -----------------------------------------------------------------
+    # **Capture AFL map size now (build‑time)**
+    # -----------------------------------------------------------------
+    # The command prints a line that contains “… map size <N> …”.
+    # We extract the numeric field and store it in a permanent file.
+    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
+        | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /etc/afl_map_size
+
+    # Optional sanity‑check (helps debugging if the file ends up empty)
+    if [ ! -s /etc/afl_map_size ]; then
+        echo "WARNING: AFL map size could not be detected during build."
+    fi
+
+    # -----------------------------------------------------------------
+    # Download LLM model (unchanged)
+    # -----------------------------------------------------------------
     cd /home/Squirrel/srcs/llm_fixer/models
     wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
         "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
-
-    # -----------------------------------------------------------------
-    # Determine AFL map size
-    # -----------------------------------------------------------------
-    # Run a short instance to capture the map size, store it for the entrypoint
-    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mariadbd 2>&1 \
-        | tail -n 1 | cut -d"," -f8 | cut -d" " -f3 > /tmp/mapsize
-
-    # Clean up apt cache to keep the image small
+    # Clean up apt cache
     rm -rf /var/lib/apt/lists/*
 
 %runscript
+    # -----------------------------------------------------------------
+    # Load the map size that was saved at build time
+    # -----------------------------------------------------------------
+    if [ -f /etc/afl_map_size ] && grep -qE '^[0-9]+$' /etc/afl_map_size; then
+        export AFL_MAP_SIZE=$(cat /etc/afl_map_size)
+    else
+        # Fallback to a safe default if the file is missing or malformed
+        echo "WARNING: Using default AFL_MAP_SIZE=65536"
+        export AFL_MAP_SIZE=65536
+    fi
+
     cd /home/Squirrel/scripts/utils
+
     # Determine number of workers from the SLURM environment (if present)
     if [ -n "$AFL_WORKERS" ]; then
         WORKERS=$AFL_WORKERS
     else
-        # Default to 1 (no extra workers) when not running under Slurm.
         WORKERS=1
     fi
 
-    export AFL_MAP_SIZE=$(cat /tmp/mapsize)
     exec python3 run.py mariadb ../../data/fuzz_root/mysql_input/ --workers $WORKERS"$@"

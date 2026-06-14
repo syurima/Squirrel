@@ -2,7 +2,7 @@ Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
 %labels
-    Maintainer "Squirrel"
+    Maintainer "Squirrel-MySQL"
 
 %environment
     export USE_LLM=1
@@ -50,15 +50,13 @@ From: /tmp/ubuntu-fakeroot.sif
 
     # Compile Squirrel, AFLplusplus, and llama.cpp
     cd /home/Squirrel
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSQLITE=ON
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DMYSQL=ON
     cmake --build build -j
     
     cd AFLplusplus/
     LLVM_CONFIG=llvm-config-14 make -j20
     
-    cd ../llama.cpp/
-    cmake -B build
-    cmake --build build --config Release
+    cd ../llama.cpp/ && cmake -B build && cmake --build build --config Release
 
     # Clone and build MySQL (using AFL compilers)
     export MYSQL_REF=${MYSQL_REF:-mysql-8.4.9}
@@ -68,19 +66,11 @@ From: /tmp/ubuntu-fakeroot.sif
     git clone --depth=1 --single-branch --branch "${MYSQL_REF}" \
         https://github.com/mysql/mysql-server.git mysql
 
-    # Install boost (required by MySQL build). This mirrors the Dockerfile which expects boost at /home/boost.
-    # Fetch boost 1.81 (or latest) if not already present.
-    if [ ! -d /home/boost ]; then
-        wget -qO- https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz | tar xz -C /home && \
-        mv /home/boost_1_81_0 /home/boost
-    fi
-
     # Build MySQL using AFL compilers
-    export CC=/home/Squirrel/AFLplusplus/afl-cc
-    export CXX=/home/Squirrel/AFLplusplus/afl-c++
-    cmake -S /home/mysql -B /home/bld \
-        -DDOWNLOAD_BOOST=1 -DWITH_BOOST=/home/boost \
-        -DWITH_DEBUG=1 -DCPACK_MONOLITHIC_INSTALL=1 -DWITH_UNIT_TESTS=OFF
+    CC=/home/Squirrel/AFLplusplus/afl-clang-fast CXX=/home/Squirrel/AFLplusplus/afl-clang-fast++ \
+    cmake -S /home/mysql -B /home/bld -DDOWNLOAD_BOOST=1 -DWITH_BOOST=/home/boost \
+    -DWITH_DEBUG=1 -DCPACK_MONOLITHIC_INSTALL=1 -DWITH_UNIT_TESTS=OFF
+
     cmake --build /home/bld --parallel ${BUILD_JOBS:-20}
     cmake --install /home/bld --prefix /usr/local/mysql/
 
@@ -101,11 +91,18 @@ From: /tmp/ubuntu-fakeroot.sif
     wget -O /models/qwen2.5-coder-1.5b-instruct-q4_0.gguf \
         "https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_0.gguf"
 
-    # Clean up temporary build context to save image space
-    rm -rf /tmp/squirrel_context
     rm -rf /var/lib/apt/lists/*
 
 %runscript
+    # -----------------------------------------------------------------
+    # Determine AFL map size (run‑time)
+    # -----------------------------------------------------------------
+    AFL_DEBUG=1 __AFL_SHM_ID=1234 /usr/local/mysql/bin/mysqld 2>&1 | grep "__afl_map_size" \
+        | tail -n 1 | cut -d',' -f8 | cut -d' ' -f3 > /tmp/mapsize
+
+    export AFL_MAP_SIZE=$(cat /tmp/mapsize)
+    export AFL_IGNORE_PROBLEMS=1
+
     cd /home/Squirrel/scripts/utils
     # Determine number of workers from the SLURM environment (if present)
     if [ -n "$AFL_WORKERS" ]; then
@@ -115,4 +112,5 @@ From: /tmp/ubuntu-fakeroot.sif
         WORKERS=1
     fi
     # Pass the workers count as a named argument to the Python script.
+
     exec python3 run.py mysql ../../data/fuzz_root/mysql_input/ --workers $WORKERS "$@"
