@@ -1,0 +1,31 @@
+name: WCSS - Zip Fuzzing Job Results
+on:
+  workflow_dispatch:
+    
+jobs:
+  zip-fuzzing-results:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run SSH command
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.HOST }}
+          key: ${{ secrets.PRIVATE_SSH_KEY }}
+          username: ${{ secrets.USERNAME }}
+          command_timeout: '60m'
+          script: |
+            dirName=results
+
+            cd ~/"$dirName"
+            
+            # for every dir in the current directory, zip it and remove the original dir
+            for dir in */; do
+                zip -r "${dir%/}.zip" "$dir"
+                rm -rf "$dir"
+            done
+
+            echo "Slurm job finished successfully."
