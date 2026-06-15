@@ -22,6 +22,10 @@ on:
         description: 'Number of AFL++ worker processes to use (set to 0 to auto-detect based on SLURM_CORES). do not set this to a value higher than the number of cores allocated for the Slurm job.'
         required: true
         default: '0'
+      allocated_RAM:
+        description: 'Amount of RAM to allocate for the Slurm job (in GB)'
+        required: true
+        default: '32'
 jobs:
   run-fuzzing:
     runs-on: ubuntu-latest
@@ -43,6 +47,8 @@ jobs:
             USE_OLD_SQUIRREL="${{ github.event.inputs.use_old_squirrel }}"
             SLURM_CORES="${{ github.event.inputs.slurm_cores }}"
             AFL_WORKERS="${{ github.event.inputs.afl_workers }}"
+            RAM="${{ github.event.inputs.allocated_RAM }}gb"
+
             dirName=${{ github.actor }}-$DBMS-run-$USE_OLD_SQUIRREL
 
             cd ~/"$dirName"
@@ -52,7 +58,7 @@ jobs:
 
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
-            JOB_ID=$(sbatch --wait --time="$MAX_RUNTIME" -c"$SLURM_CORES" ~/images/wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" "$AFL_WORKERS" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait --mem="$RAM" --time="$MAX_RUNTIME" -c"$SLURM_CORES" ~/images/wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" "$AFL_WORKERS" | awk '{print $4}')
             SLURM_EXIT_CODE=$?
             RUN_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 

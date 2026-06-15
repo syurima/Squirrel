@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH -N1                                   # Liczba węzłów
-#SBATCH --mem=32gb                            # Ilość pamięci RAM
 #SBATCH --job-name=squirrel_${DBMS}_${USE_OLD_SQUIRREL}_run       # Nazwa zadania
 #SBATCH -p lem-gpu-short                      # Nazwa partycji
 #SBATCH --gres=gpu:hopper:2                   # Potrzebne zasoby GPU
