@@ -26,6 +26,10 @@ on:
         description: 'Amount of RAM to allocate for the Slurm job (in GB)'
         required: true
         default: '32'
+      use_LLM:
+        description: 'Whether to enable LLM support in the fuzzing job (1 to enable, 0 to disable)'
+        required: true
+        default: '1'
 jobs:
   run-fuzzing:
     runs-on: ubuntu-latest
@@ -48,6 +52,7 @@ jobs:
             SLURM_CORES="${{ github.event.inputs.slurm_cores }}"
             AFL_WORKERS="${{ github.event.inputs.afl_workers }}"
             RAM="${{ github.event.inputs.allocated_RAM }}gb"
+            USE_LLM="${{ github.event.inputs.use_LLM }}"
 
             dirName=${{ github.actor }}-$DBMS-run-$USE_OLD_SQUIRREL
 
@@ -58,7 +63,7 @@ jobs:
 
             # Submit job – pass both DBMS and max runtime
             echo "Running Slurm job..."
-            JOB_ID=$(sbatch --wait --mem="$RAM" --time="$MAX_RUNTIME" -c"$SLURM_CORES" ~/images/wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" "$AFL_WORKERS" | awk '{print $4}')
+            JOB_ID=$(sbatch --wait --mem="$RAM" --time="$MAX_RUNTIME" -c"$SLURM_CORES" ~/images/wcss_run.sh "$DBMS" "$USE_OLD_SQUIRREL" "$AFL_WORKERS" "$USE_LLM" | awk '{print $4}')
             SLURM_EXIT_CODE=$?
             RUN_EXIT_STATUS=$(grep -oP 'exit status \K\d+' slurm-$JOB_ID.out || echo 0)
 

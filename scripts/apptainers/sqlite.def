@@ -5,7 +5,6 @@ From: /tmp/ubuntu-fakeroot.sif
     Maintainer "Squirrel-SQLite"
 
 %environment
-    export USE_LLM=1
     export DEBIAN_FRONTEND=noninteractive
     export CC=/home/Squirrel/AFLplusplus/afl-cc
     export CXX=/home/Squirrel/AFLplusplus/afl-c++
