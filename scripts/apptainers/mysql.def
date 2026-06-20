@@ -1,3 +1,7 @@
+# THIS DOES NOT WORK PROPERLY! 
+# If you want to fix it, reference the corresponding Dockerfile.
+# Warning: You will probably run into some issues if you do not have root access on the cluster.
+# -----------------------------------------------------------------
 Bootstrap: localimage
 From: /tmp/ubuntu-fakeroot.sif
 
